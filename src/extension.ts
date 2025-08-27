@@ -1,69 +1,47 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export function activate(context: vscode.ExtensionContext) {
-	console.log('UnityTestIA extension is now active!');
+    const disposable = vscode.commands.registerCommand('UnityTestIA.generateTest', async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            vscode.window.showErrorMessage('No hay ningún editor activo.');
+            return;
+        }
 
-	const showCodeCommand = vscode.commands.registerCommand('UnityTestIA.generateTest', async () => { 
-		const editor = vscode.window.activeTextEditor;
-		if (!editor) {
-			vscode.window.showErrorMessage('No hay ningún editor activo')
-			return;
-		}
+        const document = editor.document;
+        const text = document.getText();
 
-		const document = editor.document;
-		const text = document.getText();
+        // Crear panel
+        const panel = vscode.window.createWebviewPanel(
+            'unityTestIAView',
+            'Unity Test IA',
+            vscode.ViewColumn.Beside,
+            {
+                enableScripts: true,
+                localResourceRoots: [
+                    vscode.Uri.file(path.join(context.extensionPath, 'ui')),
+                    vscode.Uri.file(path.join(context.extensionPath, 'assets'))
+                ]
+            }
+        );
 
-		const panel = vscode.window.createWebviewPanel(
-			'unityTestIAView', 
-			'UnityTestIA - vista C#',
-			vscode.ViewColumn.Beside,
-			{
-				enableScripts: true
-			}
-		);
+        // Paths
+        const uiPath = path.join(context.extensionPath, 'ui', 'index.html');
+        const cssUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'ui', 'style.css')));
+        const logoUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'assets', 'logo.png')));
 
-		panel.webview.html = getWebviewContent(text)
-	});
+        // Cargar HTML
+        let html = fs.readFileSync(uiPath, 'utf8');
+        html = html.replace('${code}', text.replace(/</g, "&lt;").replace(/>/g, "&gt;"));
+        html = html.replace('${logoUri}', logoUri.toString());
+        html = html.replace('@@styleUri', cssUri.toString());
 
-	context.subscriptions.push(showCodeCommand);
+        panel.webview.html = html;
+    });
+
+    context.subscriptions.push(disposable);
 }
 
-function getWebviewContent(code: string): string {
-	const safeCode = code.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-	return ` 
-	<!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-
-		<!-- Estilos de Highlight.js (tema oscuro) -->
-        <link rel="stylesheet"
-              href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs2015.min.css">
-		<style>
-            body {
-                font-family: monospace;
-                background-color: #1e1e1e;
-                color: #dcdcdc;
-                padding: 16px;
-            }
-            pre {
-                padding: 12px;
-                border-radius: 8px;
-                overflow-x: auto;
-            }
-        </style>
-		 </head>
-    <body>
-        <h2>Clase detectada en C#</h2>
-        <pre><code class="language-cs">${safeCode}</code></pre>
-		 <!-- Script de Highlight.js -->
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-        <script>hljs.highlightAll();</script>
-    </body>
-    </html>`;
-}
-
-// This method is called when your extension is deactivated
 export function deactivate() {}
