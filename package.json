@@ -14,8 +14,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "UnityTestIA.helloWorld",
-        "title": "Hello World"
+        "command": "UnityTestIA.generateTest",
+        "title": "UnityTestIA: Generar Pruebas Unitarias"
       }
     ]
   },
