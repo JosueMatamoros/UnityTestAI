@@ -20,10 +20,16 @@
         <div class="card-header">
           <span class="lang-label">C#</span>
           <button id="toggleBtn">Mostrar código</button>
+          <button id="generateBtn">Generar pruebas</button>
         </div>
         <div id="codeContainer" class="collapsed">
           <pre><code class="language-cs">${code}</code></pre>
         </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">Resultado LLM</div>
+        <div id="resultContainer">[Aquí aparecerá la respuesta]</div>
       </div>
     </main>
 
@@ -31,15 +37,35 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script>
       hljs.highlightAll();
+      const vscode = acquireVsCodeApi();
 
       const toggleBtn = document.getElementById("toggleBtn");
       const codeContainer = document.getElementById("codeContainer");
-
       toggleBtn.addEventListener("click", () => {
         codeContainer.classList.toggle("collapsed");
         toggleBtn.textContent = codeContainer.classList.contains("collapsed")
           ? "Mostrar código"
           : "Ocultar código";
+      });
+
+      // Botón para generar pruebas
+      const generateBtn = document.getElementById("generateBtn");
+      generateBtn.addEventListener("click", () => {
+        document.getElementById("resultContainer").innerText = "Generando pruebas...";
+        vscode.postMessage({ command: "generateTest" });
+      });
+
+      window.addEventListener("message", (event) => {
+        const message = event.data;
+        if (message.command === "showResult") {
+          const container = document.getElementById("resultContainer");
+          // Pintamos el resultado con highlight.js si parece código C#
+          container.innerHTML =
+            "<pre><code class='language-cs'>" +
+            message.result.replace(/</g, "&lt;").replace(/>/g, "&gt;") +
+            "</code></pre>";
+          hljs.highlightAll();
+        }
       });
     </script>
   </body>

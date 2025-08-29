@@ -1,6 +1,11 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as dotenv from 'dotenv';
+import { buildPrompt } from './promptBuilder';
+import { generateWithGemini } from './llm';
+
+dotenv.config({ path: path.join(__dirname, "..", ".env") });
 
 export function activate(context: vscode.ExtensionContext) {
     const disposable = vscode.commands.registerCommand('UnityTestIA.generateTest', async () => {
@@ -39,9 +44,20 @@ export function activate(context: vscode.ExtensionContext) {
         html = html.replace('@@styleUri', cssUri.toString());
 
         panel.webview.html = html;
+
+        panel.webview.onDidReceiveMessage(async (message) => {
+            if (message.command === 'generateTest') {
+                const methodName = "Line(Int2 s, Int2 e, PlotFunction plot)";
+                const className = "Bresenhams";
+                const prompt = buildPrompt(methodName, className, text);
+                const result = await generateWithGemini(prompt);
+                panel.webview.postMessage({ command: 'showResult', result });
+            }
+        });
+
     });
 
     context.subscriptions.push(disposable);
 }
 
-export function deactivate() {}
+export function deactivate() { }

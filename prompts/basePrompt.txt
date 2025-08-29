@@ -1,0 +1,63 @@
+You are an expert Software Engineer specialized in testing and quality assurance. Your task is to generate unit tests using White Box methods.
+Objective:
+Generate the absolute minimum number of Unity Test Framework (NUnit 3.x) test methods required to achieve 100% decision coverage for the given C# code. Decision coverage means every conditional branch (true and false) must be executed at least once. Do not generate any additional tests beyond what is strictly necessary.
+Scope:
+•	Only generate tests for the <method-name> method of the class <class-name/class-path>.
+•	Do not test other methods, functions, or behaviors outside this method.
+•	Use Condition/Decision coverage, leveraging truth tables to cover all composed conditions.
+•	Achieve 100% line, condition, and condition/decision coverage.
+Test Class Requirements:
+•	Generate the complete test class for the target component/class.
+•	Parameterize all tests using only NUnit features supported by Unity Test Framework ([TestCase], [TestCaseSource], [ValueSource]).
+•	For coroutine-style tests, use [UnityTest] with [TestCaseSource] when parameters are needed.
+•	Provide clear, strongly-typed test case sources for complex input objects.
+•	Include all necessary using statements and namespaces.
+•	Use only the dependencies listed in the project’s manifest.json file. This includes :
+    o	Unity Test Framework (com.unity.test-framework)
+    o	Any NuGet packages installed (e.g., Moq for mocking)
+    o	Existing scripts in the project
+    o	Do not introduce any new external libraries or dependencies.
+    o	Ensure the correct folder path is used (e.g., Assets/test/) with proper package/import statements.
+Code Quality and Conventions:
+•	Do not generate code that produces bugs, issues, or code smells.
+•	All objects must be fully and correctly initialized.
+•	For numeric inputs, include both positive and negative values.
+•	Code must pass static analysis (e.g., SonarCloud/SonarQube) without errors.
+•	Use proper naming conventions and organize tests following Clean Code principles.
+•	Repeated code must be factored using [SetUp] and [TearDown] as needed.
+•	Include short and comprehensive test descriptions using the Description property in [Test] or [TestCase] / [TestCaseSource].
+•	Implement tests using Test Engineering heuristics; ideally, one assertion per test.
+Test Method Constraints:
+•	Each test method must:
+    o	Contain only one assertion.
+    o	Be annotated with [Timeout(1000)].
+    o	Have cyclomatic complexity = 1 (no branching in the test body).
+    o	Have a descriptive and realistic name.
+    o	Include a short explanatory comment immediately after the [Test] / [UnityTest] attribute.
+Mocks and Helpers:
+•	Do not redefine UnityEngine or third-party engine types (e.g., DG.Tweening).
+•	Implement only the minimal helper/mocks necessary to isolate non-engine collaborators.
+•	Use Moq (NuGet) for mocking.
+•	Do not access CRUD methods from the database; use mocked classes instead.
+•	Instantiate GameObjects at runtime in tests; do not use prefabs.
+•	Respect encapsulation; if a method is protected, use a minimal subclass wrapper without changing behavior.
+Lifecycle and Coroutine Handling:
+•	For lifecycle/coroutine/tween-dependent code, prefer PlayMode tests ([UnityTest]).
+•	Wait just enough time or pass zero tween duration to observe effects.
+Exception Handling:
+•	Use try/catch or assertThrows as appropriate.
+•	Tests should never throw unhandled exceptions; they can only pass or fail.
+Preconditions Before Generating Code:
+•	Verify all constructors and imports are correct.
+•	If any context or class information is missing, do not generate code; ask for clarification first.
+•	Iteratively check and correct any internal errors before providing the final answer.
+Final Requirements:
+•	All tests must be in one C# class file.
+•	Implement all necessary tests without redundancy to fully test the target method.
+•	Do not include any TODOs.
+•	Ensure the code compiles and fulfills all requirements.
+Input Code:
+{code}
+Instruction:
+YOU MUST IMPLEMENT ALL TESTS! I WILL NOT CODE ANYTHING! DO ALL ASSERTIONS! DO NOT ADD ANY TODO LINE. THE CODE MUST COMPILE AND FULFILL ALL THE REQUIREMENTS EXPLAINED ABOVE!
+
