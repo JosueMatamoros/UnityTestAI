@@ -7,6 +7,7 @@ const generateBtn = document.getElementById("generateBtn");
 const resultCard = document.getElementById("resultCard");
 const resultContainer = document.getElementById("resultContainer");
 const typingIndicator = document.getElementById("typingIndicator");
+const copyBtn = document.getElementById("copyBtn");
 
 // Toggle código
 toggleBtn.addEventListener("click", () => {
@@ -18,7 +19,7 @@ toggleBtn.addEventListener("click", () => {
 
 // Generar pruebas
 generateBtn.addEventListener("click", () => {
-  // Mostrar tarjeta resultado + animación
+  // Mostrar tarjeta resultado 
   resultCard.style.display = "block";
   typingIndicator.style.display = "flex";
   resultContainer.innerText = "";
@@ -32,14 +33,25 @@ window.addEventListener("message", (event) => {
   const message = event.data;
 
   if (message.command === "showResult") {
-    // Ocultar animación
     typingIndicator.style.display = "none";
 
-    // Mostrar el resultado
-    resultContainer.innerHTML =
-      "<pre><code class='language-cs'>" +
-      message.result.replace(/</g, "&lt;").replace(/>/g, "&gt;") +
-      "</code></pre>";
+    let cleanResult = message.result
+      .replace(/```csharp\s*/gi, "")
+      .replace(/```/g, "");
+
+    resultContainer.innerHTML = `
+      <div class="code-block">
+        <pre><code class="language-cs">${cleanResult
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")}</code></pre>
+      </div>
+    `;
+
     hljs.highlightAll();
+    copyBtn.onclick = () => {
+      navigator.clipboard.writeText(cleanResult);
+      copyBtn.textContent = "Copiado!";
+      setTimeout(() => (copyBtn.textContent = "Copiar"), 2000);
+    };
   }
 });

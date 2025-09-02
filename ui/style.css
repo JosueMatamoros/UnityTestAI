@@ -1,3 +1,4 @@
+/* ============= Body styles =============*/
 body {
   font-family: Arial, sans-serif;
   background: #1e1e1e;
@@ -6,11 +7,13 @@ body {
   padding: 0;
 }
 
+/* ============= Logo =============*/
 header .logo {
   height: 40px;
   margin: 10px;
 }
 
+/* ============= Card styles =============*/
 .card {
   background: #2d2d30;
   padding: 12px;
@@ -26,12 +29,14 @@ header .logo {
   margin-bottom: 6px;
 }
 
+/* ============= C# Label =============*/
 .lang-label {
   font-weight: bold;
   font-size: 14px;
 }
 
-#toggleBtn {
+/* =============  Active Class container =============*/
+#toggleBtn {        /* toggleBtn show/hide container */
   background: #3c3c3c;
   color: #ffffff;
   border: none;
@@ -49,12 +54,12 @@ header .logo {
   overflow: hidden;
 }
 
-#codeContainer.collapsed {
+#codeContainer.collapsed {  /* The container is collapsed by default */
   max-height: 0;
   opacity: 0;
 }
 
-/* Botón de acciones abajo a la derecha */
+/*  ============= Generate button  ============= */
 .actions {
   display: flex;
   justify-content: flex-end;
@@ -74,7 +79,22 @@ header .logo {
   background: #005f99;
 }
 
-/* Indicador "Analizando..." */
+/*  ============= Copy button  ============= */
+#copyBtn {
+  background: #007acc;
+  color: #fff;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+#copyBtn:hover {
+  background: #005f99;
+}
+
+/* ============= "Analizando..." indicator ============= */
 .typing {
   display: flex;
   align-items: center;
@@ -87,6 +107,8 @@ header .logo {
   color: #ccc;
 }
 
+
+/* ============= Dot animation =============*/
 .dot {
   width: 6px;
   height: 6px;

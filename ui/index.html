@@ -19,7 +19,9 @@
       <div class="card">
         <div class="card-header">
           <span class="lang-label">C#</span>
-          <button id="toggleBtn">Mostrar código</button>
+          <div>
+            <button id="toggleBtn">Mostrar código</button>
+          </div>
         </div>
         <div id="codeContainer" class="collapsed">
           <pre><code class="language-cs">${code}</code></pre>
@@ -27,10 +29,13 @@
       </div>
 
       <div class="card" id="resultCard" style="display: none;">
-        <div class="card-header">Resultado LLM</div>
-        <div id="resultContainer">[Aquí aparecerá la respuesta]</div>
+        <div class="card-header">
+          <span>Resultado LLM</span>
+          <button id="copyBtn">Copiar</button>
+        </div>
+        <div id="resultContainer">[Respuesta]</div>
         <div id="typingIndicator" class="typing" style="display: none;">
-          <span>>Analizando</span>
+          <span>Analizando</span>
           <div class="dot"></div>
           <div class="dot"></div>
           <div class="dot"></div>
