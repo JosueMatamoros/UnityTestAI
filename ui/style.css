@@ -1,8 +1,22 @@
+body {
+  font-family: Arial, sans-serif;
+  background: #1e1e1e;
+  color: #ffffff;
+  margin: 0;
+  padding: 0;
+}
+
+header .logo {
+  height: 40px;
+  margin: 10px;
+}
+
 .card {
   background: #2d2d30;
   padding: 12px;
   border-radius: 10px;
-  box-shadow: 0px 4px 10px rgba(0,0,0,0.4);
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.4);
+  margin: 10px;
 }
 
 .card-header {
@@ -10,11 +24,6 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 6px;
-}
-
-header .logo {
-  height: 40px;
-  width: auto;
 }
 
 .lang-label {
@@ -43,4 +52,65 @@ header .logo {
 #codeContainer.collapsed {
   max-height: 0;
   opacity: 0;
+}
+
+/* Botón de acciones abajo a la derecha */
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 20px;
+}
+
+#generateBtn {
+  background: #007acc;
+  color: #ffffff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#generateBtn:hover {
+  background: #005f99;
+}
+
+/* Indicador "Analizando..." */
+.typing {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.typing span {
+  font-size: 14px;
+  color: #ccc;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  background: #aaa;
+  border-radius: 50%;
+  animation: blink 1.4s infinite both;
+}
+
+.dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes blink {
+  0% {
+    opacity: 0.2;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.2;
+  }
 }

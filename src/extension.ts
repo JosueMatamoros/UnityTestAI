@@ -36,13 +36,14 @@ export function activate(context: vscode.ExtensionContext) {
         const uiPath = path.join(context.extensionPath, 'ui', 'index.html');
         const cssUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'ui', 'style.css')));
         const logoUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'assets', 'logo.png')));
+        const scriptUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'ui', 'script.js')));
 
         // Cargar HTML
         let html = fs.readFileSync(uiPath, 'utf8');
         html = html.replace('${code}', text.replace(/</g, "&lt;").replace(/>/g, "&gt;"));
         html = html.replace('${logoUri}', logoUri.toString());
         html = html.replace('@@styleUri', cssUri.toString());
-
+        html = html.replace('@@scriptUri', scriptUri.toString());
         panel.webview.html = html;
 
         panel.webview.onDidReceiveMessage(async (message) => {
