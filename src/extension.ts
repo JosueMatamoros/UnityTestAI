@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
 import { buildPrompt } from './promptBuilder';
-import { generateWithGemini } from './llm';
+import { generateWithDeepSeek, generateWithGemini } from './llm';
 
 dotenv.config({ path: path.join(__dirname, "..", ".env") });
 
@@ -32,6 +32,17 @@ export function activate(context: vscode.ExtensionContext) {
             }
         );
 
+        const models: {id: string; name: string} [] = []
+
+        if (process.env.GEMINI_API_KEY){
+            models.push({id: 'gemini', name: 'Google Gemini'});
+        }
+        if (process.env.DEEPSEEK_API_KEY) {
+            models.push({ id: 'deepseek', name: 'DeepSeek' });
+        }
+
+        panel.webview.postMessage({ command: "setModels", models });
+
         // Paths
         const uiPath = path.join(context.extensionPath, 'ui', 'index.html');
         const cssUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'ui', 'style.css')));
@@ -48,10 +59,16 @@ export function activate(context: vscode.ExtensionContext) {
 
         panel.webview.onDidReceiveMessage(async (message) => {
             if (message.command === 'generateTest') {
-                const methodName = "Line(Int2 s, Int2 e, PlotFunction plot)";
-                const className = "Bresenhams";
+                const methodName = "CheckHorizontal1(int row, int column, ShapesArray shapes)";
+                const className = "Utilities";
                 const prompt = buildPrompt(methodName, className, text);
-                const result = await generateWithGemini(prompt);
+                let result = "Modelo no valido";
+                if (message.model ==  "gemini") {
+                    result = await generateWithGemini(prompt);
+                } else if (message.model == "deepseek") {
+                    result = await generateWithDeepSeek(prompt);
+                }
+
                 panel.webview.postMessage({ command: 'showResult', result });
             }
         });

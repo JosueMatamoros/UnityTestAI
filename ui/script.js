@@ -24,8 +24,9 @@ generateBtn.addEventListener("click", () => {
   typingIndicator.style.display = "flex";
   resultContainer.innerText = "";
 
+  const model = document.getElementById("modelSelect").value;
   // Simulación de llamada al backend
-  vscode.postMessage({ command: "generateTest" });
+  vscode.postMessage({ command: "generateTest", model });
 });
 
 // Recibir respuesta del backend
@@ -53,5 +54,15 @@ window.addEventListener("message", (event) => {
       copyBtn.textContent = "Copiado!";
       setTimeout(() => (copyBtn.textContent = "Copiar"), 2000);
     };
+  }
+  if (message.command === "setModels") {
+    const select = document.getElementById("modelSelect");
+    select.innerHTML = "";
+    message.models.forEach((m) => {
+      const opt = document.createElement("option");
+      opt.value = m.id;
+      opt.textContent = m.name;
+      select.appendChild(opt);
+    });
   }
 });
