@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
 import { buildPrompt } from './promptBuilder';
-import { generateWithDeepSeek, generateWithGemini } from './llm';
+import { generateWithDeepSeek, generateWithGemini, generateWithChatGPT } from './llm';
 
 dotenv.config({ path: path.join(__dirname, "..", ".env") });
 
@@ -41,6 +41,10 @@ export function activate(context: vscode.ExtensionContext) {
             models.push({ id: 'deepseek', name: 'DeepSeek' });
         }
 
+        if (process.env.CHATGPT_API_KEY) {
+            models.push({id: 'chatgpt', name: 'ChatGPT' })
+        }
+
         panel.webview.postMessage({ command: "setModels", models });
 
         // Paths
@@ -67,8 +71,9 @@ export function activate(context: vscode.ExtensionContext) {
                     result = await generateWithGemini(prompt);
                 } else if (message.model == "deepseek") {
                     result = await generateWithDeepSeek(prompt);
+                } else if (message.model == "chatgpt"){
+                    result = await generateWithChatGPT(prompt)
                 }
-
                 panel.webview.postMessage({ command: 'showResult', result });
             }
         });

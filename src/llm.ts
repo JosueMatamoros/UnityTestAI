@@ -77,12 +77,12 @@ export async function generateWithChatGPT(prompt: string): Promise<string> {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY || ""}`,
+          Authorization: `Bearer ${process.env.CHATGPT_API_KEY || ""}`,
           "HTTP-Referer": "http://localhost", 
           "X-Title": "UnityTestIA", 
         },
         body: JSON.stringify({
-          model: "openai/gpt-oss-120b:free",
+          model: "openai/gpt-oss-20b:free",
           messages: [
             { role: "user", content: prompt },
           ],

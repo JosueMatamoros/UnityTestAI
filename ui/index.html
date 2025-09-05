@@ -28,13 +28,13 @@
         </div>
       </div>
 
-      <div class="card" id="resultCard" style="display: none;">
+      <div class="card" id="resultCard" style="display: none">
         <div class="card-header">
           <span>Resultado LLM</span>
           <button id="copyBtn">Copiar</button>
         </div>
         <div id="resultContainer">[Respuesta]</div>
-        <div id="typingIndicator" class="typing" style="display: none;">
+        <div id="typingIndicator" class="typing" style="display: none">
           <span>Analizando</span>
           <div class="dot"></div>
           <div class="dot"></div>
@@ -42,9 +42,12 @@
         </div>
       </div>
       <div class="actions">
-        <label for="modelSelect">Seleccionar modelo:</label>
-        <select id="modelSelect"></select>
-        <button id="generateBtn">Generar pruebas</button>
+        <div class="select-group">
+          <select id="modelSelect"></select>
+        </div>
+        <button id="generateBtn">
+          <span class="icon">➤</span>
+        </button>
       </div>
     </main>
 

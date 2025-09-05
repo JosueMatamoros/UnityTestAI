@@ -59,25 +59,78 @@ header .logo {
   opacity: 0;
 }
 
-/*  ============= Generate button  ============= */
+/* ============= Actions container ============= */
 .actions {
   display: flex;
+  align-items: flex-end;
   justify-content: flex-end;
+  gap: 12px;
   margin: 20px;
+  background: #2d2d2d;
+  padding: 12px 16px;
+  border-radius: 12px;
+  box-shadow: 0px 2px 6px rgba(0,0,0,0.3);
 }
 
+/* ============= Select group (label + select) ============= */
+.select-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.select-group label {
+  font-size: 12px;
+  color: #aaa;
+  margin-bottom: 4px;
+}
+
+#modelSelect {
+  background: #3c3c3c;
+  color: #fff;
+  border: none;
+  height: 40px;
+  border-radius: 8px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.2s ease-in-out;
+}
+
+#modelSelect:hover {
+  background: #505050;
+}
+
+/* ============= Generate button as icon ============= */
 #generateBtn {
   background: #007acc;
-  color: #ffffff;
   border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  transition: background 0.2s ease-in-out, transform 0.1s ease-in-out;
 }
 
 #generateBtn:hover {
   background: #005f99;
 }
+
+#generateBtn:active {
+  transform: scale(0.95);
+}
+
+#generateBtn .icon {
+  color: #fff;
+  font-size: 16px;
+}
+
 
 /*  ============= Copy button  ============= */
 #copyBtn {
