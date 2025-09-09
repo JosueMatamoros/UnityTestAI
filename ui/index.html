@@ -41,18 +41,36 @@
           <div class="dot"></div>
         </div>
       </div>
-      <div class="actions">
-        <div class="input-group">
-          <label class="lbl" for="classNameInput">Nombre de la clase</label>
-          <input id="classNameInput" type="text" placeholder="Utilities" />
+      <div class="stepper" id="stepper">
+        <div class="stepper-label">
+          <span>Paso <span id="currentStep">0</span> de 2</span>
+        </div>
+        <div class="stepper-bar">
+          <div class="stepper-fill" id="stepperFill"></div>
+        </div>
+      </div>
 
-          <label class="lbl" for="methodNameInput">Nombre del método</label>
+      <div
+        id="readyBadge"
+        class="ready-badge"
+        style="display: none; margin: 10px 20px 0 20px"
+      >
+        Todo listo. Puedes generar el prompt.
+      </div>
+
+      <div class="actions">
+        <div class="input-group" id="stepInputGroup">
+          <label class="lbl" id="stepLabel" for="stepInput"
+            >Nombre de la clase</label
+          >
           <input
-            id="methodNameInput"
+            id="stepInput"
             type="text"
-            placeholder="CheckHorizontal1"
+            placeholder="Utilities"
+            autocomplete="off"
           />
         </div>
+
         <div class="select-group">
           <select id="modelSelect"></select>
         </div>

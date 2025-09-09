@@ -160,40 +160,40 @@ header .logo {
   color: #ccc;
 }
 
-/* ============= Input group (labels + inputs) ============= */
-.input-group {
+/* ============= Step input ============= */
+.step-input {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   flex: 1;
+  margin: 0 20px; /* mismo ritmo que el stepper */
 }
 
-.input-group label {
+.step-input .lbl {
   font-size: 12px;
   color: #aaa;
-  margin-bottom: 2px;
 }
 
-.input-group input {
+.step-input input {
   background: #3c3c3c;
   color: #fff;
   border: none;
-  height: 36px;
+  height: 40px;
   border-radius: 8px;
   padding: 6px 12px;
   font-size: 14px;
   outline: none;
-  transition: background 0.2s ease-in-out;
+  transition: background 0.2s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 
-.input-group input:focus {
+.step-input input:focus {
   background: #4a4a4a;
+  box-shadow: 0 0 0 2px rgba(11,122,204,0.35);
 }
 
-.input-group input.error {
-  border: 1px solid #d9534f; /* rojo sutil si faltan datos */
+.step-input input.error {
+  box-shadow: 0 0 0 2px rgba(217,83,79,0.7);
 }
-
 
 /* ============= Dot animation =============*/
 .dot {
@@ -221,5 +221,127 @@ header .logo {
   }
   100% {
     opacity: 0.2;
+  }
+}
+
+
+/* ===================== NUEVO: PANTALLA COMPLETA + ACTIONS ABAJO ===================== */
+html, body {
+  height: 100%;
+}
+
+main {
+  min-height: 100vh;          /* ocupa toda la pantalla */
+  display: flex;
+  flex-direction: column;
+}
+
+.actions {
+  margin-top: auto;           /* empuja la barra al fondo */
+  position: sticky;           /* se queda abajo cuando hay scroll */
+  bottom: 0;
+  border-radius: 12px 12px 0 0; /* esquina superior redondeada al pegarse abajo */
+  box-shadow: 0px -2px 6px rgba(0,0,0,0.3); /* sombra hacia arriba cuando está abajo */
+}
+
+
+/* ===================== NUEVO: STEPPER SENCILLO ===================== */
+.stepper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 20px 0 20px;   /* justo encima de .actions */
+}
+
+.stepper-label {
+  font-size: 12px;
+  color: #aaa;
+  display: flex;
+  justify-content: space-between;
+}
+
+.stepper-bar {
+  height: 6px;
+  background: #3c3c3c;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.stepper-fill {
+  height: 100%;
+  width: 0%;                  /* el JS actualizará esto a 50% o 100% */
+  background: #007acc;
+  transition: width 0.3s ease-in-out;
+}
+
+
+
+/* ============= Estado listo ============= */
+.ready-badge {
+  background: #22313f;
+  color: #d6f0ff;
+  border: 1px solid rgba(0, 122, 204, 0.4);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+
+/* ============= Actions: input-group (un solo campo por paso) ============= */
+.actions .input-group {
+  flex: 1;                     /* ocupa todo el ancho disponible */
+  min-width: 0;                /* permite que el input flexione sin desbordar */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.actions .input-group .lbl {
+  font-size: 12px;
+  color: #aaa;
+  margin-bottom: 2px;
+}
+
+.actions .input-group input {
+  background: #3c3c3c;
+  color: #fff;
+  border: none;
+  height: 40px;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 14px;
+  outline: none;
+  transition: background 0.2s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.actions .input-group input:focus {
+  background: #4a4a4a;
+  box-shadow: 0 0 0 2px rgba(11,122,204,0.35);
+}
+
+.actions .input-group input.error {
+  box-shadow: 0 0 0 2px rgba(217,83,79,0.7);
+}
+
+/* Ajustes para que el select no se coma el espacio del input */
+.actions .select-group {
+  flex: 0 0 auto;              /* ancho auto, no se expande */
+}
+
+/* Responsive pequeño: apila elementos si el ancho es corto */
+@media (max-width: 720px) {
+  .actions {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .actions .input-group {
+    order: 1;
+    width: 100%;
+  }
+  .actions .select-group {
+    order: 2;
+  }
+  #generateBtn {
+    order: 3;
   }
 }

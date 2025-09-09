@@ -46,8 +46,6 @@ export function activate(context: vscode.ExtensionContext) {
             models.push({id: 'chatgpt', name: 'ChatGPT' })
         }
 
-        panel.webview.postMessage({ command: "setModels", models });
-
         // Paths
         const uiPath = path.join(context.extensionPath, 'ui', 'index.html');
         const cssUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'ui', 'style.css')));
@@ -61,6 +59,8 @@ export function activate(context: vscode.ExtensionContext) {
         html = html.replace('@@styleUri', cssUri.toString());
         html = html.replace('@@scriptUri', scriptUri.toString());
         panel.webview.html = html;
+
+        panel.webview.postMessage({ command: "setModels", models });
 
         panel.webview.onDidReceiveMessage(async (message) => {
             if (message.command === 'generateTest') {
