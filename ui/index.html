@@ -2,8 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="stylesheet" href="@@styleUri" />
 
+     <!-- CSS principal de la UI (inyectado por extension.ts) -->
+    <link rel="stylesheet" href="@@styleUri" />
     <!-- Highlight.js CSS -->
     <link
       rel="stylesheet"
@@ -12,28 +13,36 @@
   </head>
   <body>
     <header>
+      <!--  -->
       <img src="${logoUri}" alt="UnityTestIA Logo" class="logo" />
     </header>
 
     <main>
+      <!-- ================= Sección de código fuente C# del editor ================= -->
       <div class="card">
         <div class="card-header">
+          <!-- Etiqueta del lenguaje mostrado -->
           <span class="lang-label">C#</span>
           <div>
+            <!-- Botón que alterna entre mostrar/ocultar el bloque de código -->
             <button id="toggleBtn">Mostrar código</button>
           </div>
         </div>
+        <!-- Contenedor del código que se oculta/expande dinámicamente -->
         <div id="codeContainer" class="collapsed">
           <pre><code class="language-cs">${code}</code></pre>
         </div>
       </div>
-
+      <!-- ================= Sección de resultado del LLM ================= -->
       <div class="card" id="resultCard" style="display: none">
         <div class="card-header">
           <span>Resultado LLM</span>
+          <!-- Botón para copiar el resultado del LLM -->
           <button id="copyBtn">Copiar</button>
         </div>
+        <!-- Contenedor del resultado -->
         <div id="resultContainer">[Respuesta]</div>
+        <!-- Indicador de escritura del llm-->
         <div id="typingIndicator" class="typing" style="display: none">
           <span>Analizando</span>
           <div class="dot"></div>
@@ -41,6 +50,7 @@
           <div class="dot"></div>
         </div>
       </div>
+      <!-- ================= Sección del stepper ================= -->
       <div class="stepper" id="stepper">
         <div class="stepper-label">
           <span>Paso <span id="currentStep">0</span> de 2</span>
@@ -50,6 +60,7 @@
         </div>
       </div>
 
+      <!-- Badge de listo -->
       <div
         id="readyBadge"
         class="ready-badge"
@@ -58,6 +69,7 @@
         Todo listo. Puedes generar el prompt.
       </div>
 
+      <!-- ================= Sección de acciones ================= -->
       <div class="actions">
         <div class="input-group" id="stepInputGroup">
           <label class="lbl" id="stepLabel" for="stepInput"
@@ -71,6 +83,7 @@
           />
         </div>
 
+        <!-- Menú de selección de modelo -->
         <div class="select-group">
           <select id="modelSelect"></select>
         </div>
@@ -82,6 +95,8 @@
 
     <!-- Highlight.js JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <!-- Script principal de la UI (inyectado por extension.ts) -->
     <script src="@@scriptUri"></script>
   </body>
 </html>

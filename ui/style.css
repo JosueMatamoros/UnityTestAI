@@ -1,19 +1,27 @@
-/* ============= Body styles =============*/
+/* ========================== Main styles ==========================*/
+main {
+  min-height: 100vh;         
+  display: flex;
+  flex-direction: column;
+}
+
+/* ========================== Body styles ==========================*/
 body {
   font-family: Arial, sans-serif;
   background: #1e1e1e;
   color: #ffffff;
   margin: 0;
   padding: 0;
+  height: 100%;
 }
 
-/* ============= Logo =============*/
+/* ========================== Logo ========================== */
 header .logo {
   height: 40px;
   margin: 10px;
 }
 
-/* ============= Card styles =============*/
+/* ========================== Card styles ========================== */
 .card {
   background: #2d2d30;
   padding: 12px;
@@ -29,14 +37,14 @@ header .logo {
   margin-bottom: 6px;
 }
 
-/* ============= C# Label =============*/
+/* ========================== C# Label ========================== */
 .lang-label {
   font-weight: bold;
   font-size: 14px;
 }
 
-/* =============  Active Class container =============*/
-#toggleBtn {        /* toggleBtn show/hide container */
+/* ==========================  Active Class container ========================== */
+#toggleBtn { /* toggleBtn show/hide container */
   background: #3c3c3c;
   color: #ffffff;
   border: none;
@@ -45,11 +53,11 @@ header .logo {
   cursor: pointer;
 }
 
-#toggleBtn:hover {
+#toggleBtn:hover { /* hover effect */
   background: #505050;
 }
 
-#codeContainer {
+#codeContainer { /* The container that holds the code block */
   transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
   overflow: hidden;
 }
@@ -59,53 +67,38 @@ header .logo {
   opacity: 0;
 }
 
-/* ============= Actions container ============= */
-.actions {
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-  gap: 12px;
-  margin: 20px;
-  background: #2d2d2d;
-  padding: 12px 16px;
-  border-radius: 12px;
-  box-shadow: 0px 2px 6px rgba(0,0,0,0.3);
-}
-
-/* ============= Select group (label + select) ============= */
-.select-group {
+/* ========================== Select group (LLMs) ========================== */
+.select-group {   /* contenedor para los select de LLMs */
   display: flex;
   flex-direction: column;
 }
 
-.select-group label {
-  font-size: 12px;
-  color: #aaa;
-  margin-bottom: 4px;
-}
-
-#modelSelect {
+#modelSelect {  /* estilo del select */
   background: #3c3c3c;
   color: #fff;
   border: none;
   height: 40px;
   border-radius: 8px;
-  padding: 6px 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 0 12px;             
+  display: inline-block;       
+  vertical-align: middle;
   font-size: 14px;
   cursor: pointer;
   outline: none;
   transition: background 0.2s ease-in-out;
 }
 
-#modelSelect:hover {
+#modelSelect:hover { /* hover effect */
   background: #505050;
 }
 
-/* ============= Generate button as icon ============= */
-#generateBtn {
+#modelSelect:focus { /* focus effect */
+  background: #4a4a4a;
+  box-shadow: 0 0 0 2px rgba(11,122,204,0.35);
+}
+
+/* ========================== Generate button  ========================== */
+#generateBtn {  /* estilo del botón */
   background: #007acc;
   border: none;
   border-radius: 50%;
@@ -118,22 +111,21 @@ header .logo {
   transition: background 0.2s ease-in-out, transform 0.1s ease-in-out;
 }
 
-#generateBtn:hover {
+#generateBtn:hover { /* hover effect */
   background: #005f99;
 }
 
-#generateBtn:active {
+#generateBtn:active { /* active effect */
   transform: scale(0.95);
 }
 
-#generateBtn .icon {
+#generateBtn .icon { /* estilo del icono del botón */
   color: #fff;
   font-size: 16px;
 }
 
-
-/*  ============= Copy button  ============= */
-#copyBtn {
+/*   ========================== Copy button   ==========================*/
+#copyBtn { 
   background: #007acc;
   color: #fff;
   border: none;
@@ -147,55 +139,55 @@ header .logo {
   background: #005f99;
 }
 
-/* ============= "Analizando..." indicator ============= */
-.typing {
+/* ========================== "Analizando..." indicator ========================== */
+.typing { /* contenedor del indicador */
   display: flex;
   align-items: center;
   gap: 5px;
   margin-top: 10px;
 }
 
-.typing span {
+.typing span { /* estilo del texto */
   font-size: 14px;
   color: #ccc;
 }
 
-/* ============= Step input ============= */
-.step-input {
+/* ========================== Step input ==========================  */
+.step-input { /* Contenedor del stepper */
   display: flex;
   flex-direction: column;
   gap: 8px;
   flex: 1;
-  margin: 0 20px; /* mismo ritmo que el stepper */
+  margin: 0 20px; 
 }
 
-.step-input .lbl {
+.step-input .lbl { /* Estilo del label del stepper */ 
   font-size: 12px;
   color: #aaa;
 }
 
-.step-input input {
+.step-input input { /* Estilo del input del stepper */
   background: #3c3c3c;
   color: #fff;
   border: none;
   height: 40px;
   border-radius: 8px;
-  padding: 6px 12px;
+  padding: 0 12px;             
   font-size: 14px;
   outline: none;
   transition: background 0.2s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 
-.step-input input:focus {
+.step-input input:focus { /* Estilo al hacer focus*/
   background: #4a4a4a;
   box-shadow: 0 0 0 2px rgba(11,122,204,0.35);
 }
 
-.step-input input.error {
+.step-input input.error { /* Estilo si hay error */
   box-shadow: 0 0 0 2px rgba(217,83,79,0.7);
 }
 
-/* ============= Dot animation =============*/
+/* ========================== Dot animation ==========================*/
 .dot {
   width: 6px;
   height: 6px;
@@ -212,7 +204,7 @@ header .logo {
   animation-delay: 0.4s;
 }
 
-@keyframes blink {
+@keyframes blink { /* Efecto blink */
   0% {
     opacity: 0.2;
   }
@@ -224,60 +216,37 @@ header .logo {
   }
 }
 
-
-/* ===================== NUEVO: PANTALLA COMPLETA + ACTIONS ABAJO ===================== */
-html, body {
-  height: 100%;
-}
-
-main {
-  min-height: 100vh;          /* ocupa toda la pantalla */
-  display: flex;
-  flex-direction: column;
-}
-
-.actions {
-  margin-top: auto;           /* empuja la barra al fondo */
-  position: sticky;           /* se queda abajo cuando hay scroll */
-  bottom: 0;
-  border-radius: 12px 12px 0 0; /* esquina superior redondeada al pegarse abajo */
-  box-shadow: 0px -2px 6px rgba(0,0,0,0.3); /* sombra hacia arriba cuando está abajo */
-}
-
-
-/* ===================== NUEVO: STEPPER SENCILLO ===================== */
-.stepper {
+/* ========================== STEPPER ========================== */
+.stepper { /* Contenedor del stepper */
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin: 10px 20px 0 20px;   /* justo encima de .actions */
+  margin: 10px 20px 0 20px;  
 }
 
-.stepper-label {
+.stepper-label { /* Estilo del label del stepper */
   font-size: 12px;
   color: #aaa;
   display: flex;
   justify-content: space-between;
 }
 
-.stepper-bar {
+.stepper-bar { /* Estilo de la barra del stepper */
   height: 6px;
   background: #3c3c3c;
   border-radius: 999px;
   overflow: hidden;
 }
 
-.stepper-fill {
+.stepper-fill { /* Estilo del relleno del stepper */
   height: 100%;
-  width: 0%;                  /* el JS actualizará esto a 50% o 100% */
+  width: 0%;                 
   background: #007acc;
   transition: width 0.3s ease-in-out;
 }
 
-
-
-/* ============= Estado listo ============= */
-.ready-badge {
+/* ========================== Estado Stepper listo ==========================  */
+.ready-badge { /* Estilo del badge de listo */
   background: #22313f;
   color: #d6f0ff;
   border: 1px solid rgba(0, 122, 204, 0.4);
@@ -286,49 +255,74 @@ main {
   font-size: 13px;
 }
 
-
-/* ============= Actions: input-group (un solo campo por paso) ============= */
-.actions .input-group {
-  flex: 1;                     /* ocupa todo el ancho disponible */
-  min-width: 0;                /* permite que el input flexione sin desbordar */
+/* ========================== Actions container ========================== */
+.actions { /* Estilo principal de los actions */
   display: flex;
-  flex-direction: column;
+  align-items: flex-end;       
+  justify-content: flex-end;  
+  gap: 12px;                   
+  margin: 20px;
+  background: #2d2d2d;
+  padding: 12px 16px;
+  border-radius: 12px;
+  box-shadow: 0px 2px 6px rgba(0,0,0,0.3);
+  margin-top: auto;            /* empuja la barra hacia abajo si hay espacio */
+  position: sticky;            /* permanece visible abajo al hacer scroll */
+  bottom: 0;
+}
+
+.actions .input-group { /* Contenedor del input de "Nombre de la clase" */
+  flex: 1;                     /* ocupa todo el ancho disponible */
+  min-width: 0;                
+  display: flex;
+  flex-direction: column;     
   gap: 8px;
 }
 
-.actions .input-group .lbl {
+.actions .input-group .lbl { /* Label del input de "Nombre de la clase" */
   font-size: 12px;
   color: #aaa;
   margin-bottom: 2px;
 }
 
-.actions .input-group input {
+.actions .input-group input { /* Estilo del input de "Nombre de la clase" */
   background: #3c3c3c;
   color: #fff;
   border: none;
-  height: 40px;
+  height: 40px;               
   border-radius: 8px;
-  padding: 6px 12px;
+  padding: 0 12px;            
   font-size: 14px;
+  line-height: 40px;          
+  box-sizing: border-box;
   outline: none;
   transition: background 0.2s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 
-.actions .input-group input:focus {
+.actions .input-group input:focus { /* Efecto focus en "Nombre de la clase" */
   background: #4a4a4a;
   box-shadow: 0 0 0 2px rgba(11,122,204,0.35);
 }
 
-.actions .input-group input.error {
+.actions .input-group input.error { /* Estilo error en "Nombre de la clase"  */
   box-shadow: 0 0 0 2px rgba(217,83,79,0.7);
 }
 
-/* Ajustes para que el select no se coma el espacio del input */
-.actions .select-group {
-  flex: 0 0 auto;              /* ancho auto, no se expande */
+.actions .select-group { /* Contenedor del menú de selección de modelo */
+  flex: 0 0 auto;              
 }
 
-/* Responsive pequeño: apila elementos si el ancho es corto */
+
+.actions .input-group input,
+#modelSelect { /* Alineación de altura entre input y select */
+  box-sizing: border-box;
+  height: 40px;
+  line-height: 40px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* Responsive sm */
 @media (max-width: 720px) {
   .actions {
     flex-wrap: wrap;
