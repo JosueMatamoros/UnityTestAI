@@ -8,6 +8,8 @@ const resultCard = document.getElementById("resultCard");
 const resultContainer = document.getElementById("resultContainer");
 const typingIndicator = document.getElementById("typingIndicator");
 const copyBtn = document.getElementById("copyBtn");
+const classNameInput = document.getElementById("classNameInput");
+const methodNameInput = document.getElementById("methodNameInput");
 
 // Toggle código
 toggleBtn.addEventListener("click", () => {
@@ -63,6 +65,23 @@ window.addEventListener("message", (event) => {
       opt.value = m.id;
       opt.textContent = m.name;
       select.appendChild(opt);
+    });
+  }
+  
+  if (message.command === "requestInputs") {
+    const className = (classNameInput.value || "").trim();
+    const methodName = (methodNameInput.value || "").trim();
+
+    if (!className || !methodName) {
+      vscode.postMessage({ command: "inputsCancelled" });
+      typingIndicator.style.display = "none";
+      return;
+    }
+
+    vscode.postMessage({
+      command: "inputsProvided",
+      className,
+      methodName
     });
   }
 });

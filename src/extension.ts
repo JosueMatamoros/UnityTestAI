@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as dotenv from 'dotenv';
 import { buildPrompt } from './promptBuilder';
 import { generateWithDeepSeek, generateWithGemini, generateWithChatGPT } from './llm';
+import { collectClassAndMethod } from './collectInputs';
 
 dotenv.config({ path: path.join(__dirname, "..", ".env") });
 
@@ -63,8 +64,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         panel.webview.onDidReceiveMessage(async (message) => {
             if (message.command === 'generateTest') {
-                const methodName = "CheckHorizontal1(int row, int column, ShapesArray shapes)";
-                const className = "Utilities";
+                const { className, methodName } = await collectClassAndMethod(panel);
                 const prompt = buildPrompt(methodName, className, text);
                 let result = "Modelo no valido";
                 if (message.model ==  "gemini") {

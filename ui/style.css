@@ -160,6 +160,40 @@ header .logo {
   color: #ccc;
 }
 
+/* ============= Input group (labels + inputs) ============= */
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.input-group label {
+  font-size: 12px;
+  color: #aaa;
+  margin-bottom: 2px;
+}
+
+.input-group input {
+  background: #3c3c3c;
+  color: #fff;
+  border: none;
+  height: 36px;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 14px;
+  outline: none;
+  transition: background 0.2s ease-in-out;
+}
+
+.input-group input:focus {
+  background: #4a4a4a;
+}
+
+.input-group input.error {
+  border: 1px solid #d9534f; /* rojo sutil si faltan datos */
+}
+
 
 /* ============= Dot animation =============*/
 .dot {
