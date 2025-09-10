@@ -1,32 +1,39 @@
+// Resalta todo el código 
 hljs.highlightAll();
+// API de VSCode
 const vscode = acquireVsCodeApi();
 
+// Botón para togglear el contenedor de código (input) y su contenedor
 const toggleBtn = document.getElementById("toggleBtn");
 const codeContainer = document.getElementById("codeContainer");
+// Botón para generar pruebas y contenedor de resultados
 const generateBtn = document.getElementById("generateBtn");
 const resultCard = document.getElementById("resultCard");
 const resultContainer = document.getElementById("resultContainer");
+// Indicador de tipeo y botón de copiar
 const typingIndicator = document.getElementById("typingIndicator");
 const copyBtn = document.getElementById("copyBtn");
-// refs actuales (deja los tuyos tal cual)
+// Elementos del stepper
 const currentStep = document.getElementById("currentStep");
 const stepperFill = document.getElementById("stepperFill");
+const stepperBox = document.getElementById("stepper");
+// Elementos del input y su label
 const stepLabel = document.getElementById("stepLabel");
 const stepInput = document.getElementById("stepInput");
-const stepperBox = document.getElementById("stepper");
+// Badge de listo (tercer paso)
 const readyBadge = document.getElementById("readyBadge");
 
 let step = 0; // 0 = pedir clase, 1 = pedir método, 2 = listo
 let classNameVal = "";
 let methodNameVal = "";
 
-function updateStepper(stepNum) {
+function updateStepper(stepNum) {  // Actualiza el stepper visual
   currentStep.textContent = stepNum;
   stepperFill.style.width =
     stepNum === 0 ? "0%" : stepNum === 1 ? "50%" : "100%";
 }
 
-function setStep(newStep) {
+function setStep(newStep) { // Controla los inputs y labels según paso
   step = newStep;
 
   if (step < 2) {
@@ -46,9 +53,8 @@ function setStep(newStep) {
     // Paso 2: todo listo
     if (stepperBox) stepperBox.style.display = "none";
     if (readyBadge) readyBadge.style.display = "";
-    // Deja el input con el último contexto (método) por si quiere corregir
-    stepLabel.textContent = "Nombre del método";
-    stepInput.placeholder = "CheckHorizontal1";
+    if (stepLabel) stepLabel.style.display = "none";
+    if (stepInput) stepInput.style.display = "none";
   }
 
   updateStepper(step);
@@ -97,21 +103,23 @@ generateBtn.addEventListener("click", () => {
   resultContainer.innerText = "";
 
   const model = document.getElementById("modelSelect").value;
-  // Simulación de llamada al backend
+  // Llamar a generateTest en el backend
   vscode.postMessage({ command: "generateTest", model });
 });
 
-// Recibir respuesta del backend
+// Recibir respuesta del backend al recibir los resultados del LLM
 window.addEventListener("message", (event) => {
   const message = event.data;
 
   if (message.command === "showResult") {
     typingIndicator.style.display = "none";
 
+    // Limpia el resultado de los backticks
     let cleanResult = message.result
       .replace(/```csharp\s*/gi, "")
       .replace(/```/g, "");
 
+    // Mostrar resultado en el contenedor de resultados
     resultContainer.innerHTML = `
       <div class="code-block">
         <pre><code class="language-cs">${cleanResult
@@ -119,7 +127,7 @@ window.addEventListener("message", (event) => {
           .replace(/>/g, "&gt;")}</code></pre>
       </div>
     `;
-
+    // Resalta el código y configura el botón de copiar
     hljs.highlightAll();
     copyBtn.onclick = () => {
       navigator.clipboard.writeText(cleanResult);
@@ -127,6 +135,7 @@ window.addEventListener("message", (event) => {
       setTimeout(() => (copyBtn.textContent = "Copiar"), 2000);
     };
   }
+  // Llena el select de modelos
   if (message.command === "setModels") {
     const select = document.getElementById("modelSelect");
     select.innerHTML = "";
@@ -137,7 +146,7 @@ window.addEventListener("message", (event) => {
       select.appendChild(opt);
     });
   }
-
+  // Responde al requestInputs del backend
   if (message.command === "requestInputs") {
     // sincroniza por si escribió sin Enter
     const pending = stepInput.value.trim();
@@ -159,6 +168,7 @@ window.addEventListener("message", (event) => {
       return;
     }
 
+    // Envía los inputs al backend
     vscode.postMessage({
       command: "inputsProvided",
       className: classNameVal.trim(),
