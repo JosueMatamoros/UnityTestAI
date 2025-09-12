@@ -1,4 +1,4 @@
-// Resalta todo el código 
+// Resalta todo el código
 hljs.highlightAll();
 // API de VSCode
 const vscode = acquireVsCodeApi();
@@ -27,18 +27,21 @@ let step = 0; // 0 = pedir clase, 1 = pedir método, 2 = listo
 let classNameVal = "";
 let methodNameVal = "";
 
-function updateStepper(stepNum) {  // Actualiza el stepper visual
+function updateStepper(stepNum) {
+  // Actualiza el stepper visual
   currentStep.textContent = stepNum;
   stepperFill.style.width =
     stepNum === 0 ? "0%" : stepNum === 1 ? "50%" : "100%";
 }
 
-function setStep(newStep) { // Controla los inputs y labels según paso
+function setStep(newStep) {
   step = newStep;
 
   if (step < 2) {
     if (stepperBox) stepperBox.style.display = "";
     if (readyBadge) readyBadge.style.display = "none";
+    if (stepLabel) stepLabel.style.display = "";
+    if (stepInput) stepInput.style.display = "";
 
     if (step === 0) {
       stepLabel.textContent = "Nombre de la clase";
@@ -49,8 +52,7 @@ function setStep(newStep) { // Controla los inputs y labels según paso
       stepInput.placeholder = "CheckHorizontal1";
       stepInput.value = methodNameVal;
     }
-  } else {
-    // Paso 2: todo listo
+  } else if (step === 2) {
     if (stepperBox) stepperBox.style.display = "none";
     if (readyBadge) readyBadge.style.display = "";
     if (stepLabel) stepLabel.style.display = "none";
@@ -77,13 +79,14 @@ stepInput.addEventListener("keydown", (e) => {
 
   if (step === 0) {
     classNameVal = val;
-    setStep(1); // pasa a pedir método
+    setStep(1);
   } else if (step === 1) {
     methodNameVal = val;
-    setStep(2); // listo
-  } else {
-    // Paso 2: tercer Enter => click en generar
-    document.getElementById("generateBtn")?.click();
+    vscode.postMessage({
+      command: "validateInputs",
+      className: classNameVal.trim(),
+      methodName: methodNameVal.trim(),
+    });
   }
 });
 
@@ -173,6 +176,29 @@ window.addEventListener("message", (event) => {
       command: "inputsProvided",
       className: classNameVal.trim(),
       methodName: methodNameVal.trim(),
+    });
+  }
+  // La clase o el método no coincide, {se vuelven a solicitar}
+  if (message.command === "resetInputs") {
+    classNameVal = "";
+    methodNameVal = "";
+    setStep(0); 
+    typingIndicator.style.display = "none";
+    resultCard.style.display = "none";
+  }
+
+  // Todo listo para hacer la solicitud
+  if (message.command === "goToStep2") {
+    setStep(2);
+
+    // Mostrar tarjeta y loader
+    resultCard.style.display = "block";
+    typingIndicator.style.display = "flex";
+    resultContainer.innerText = "";
+
+    vscode.postMessage({
+      command: "generateTest",
+      model: document.getElementById("modelSelect").value,
     });
   }
 });
