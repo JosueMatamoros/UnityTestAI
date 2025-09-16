@@ -139,6 +139,19 @@ header .logo {
   background: #005f99;
 }
 
+/*   ========================== LLM text ==========================*/
+
+.text-block {
+  padding: 10px 14px;
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 14px;
+  color: #ccc;
+  background-color: #1e1e1e;
+  border-left: 3px solid #555;
+  margin: 4px 0;
+  white-space: pre-wrap; /* respeta saltos de línea */
+}
+
 /* ========================== "Analizando..." indicator ========================== */
 .typing { /* contenedor del indicador */
   display: flex;

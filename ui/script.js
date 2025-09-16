@@ -117,23 +117,59 @@ window.addEventListener("message", (event) => {
   if (message.command === "showResult") {
     typingIndicator.style.display = "none";
 
-    // Limpia el resultado de los backticks
-    let cleanResult = message.result
-      .replace(/```csharp\s*/gi, "")
-      .replace(/```/g, "");
+    const raw = message.result;
+    const regex = /```csharp([\s\S]*?)```/gi;
+    const segments = [];
+    let lastIndex = 0;
+    let match;
 
-    // Mostrar resultado en el contenedor de resultados
-    resultContainer.innerHTML = `
-      <div class="code-block">
-        <pre><code class="language-cs">${cleanResult
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")}</code></pre>
-      </div>
-    `;
-    // Resalta el código y configura el botón de copiar
+    // divide en texto/código
+    while ((match = regex.exec(raw)) !== null) {
+      if (match.index > lastIndex) {
+        segments.push({
+          type: "text",
+          content: raw.slice(lastIndex, match.index),
+        });
+      }
+      segments.push({ type: "code", content: match[1] });
+      lastIndex = regex.lastIndex;
+    }
+    if (lastIndex < raw.length) {
+      segments.push({ type: "text", content: raw.slice(lastIndex) });
+    }
+
+    // construye el HTML
+    let html = "";
+    segments.forEach((seg) => {
+      if (seg.type === "code") {
+        html += `
+        <div class="code-block">
+          <pre><code class="language-cs">${seg.content
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")}</code></pre>
+        </div>
+      `;
+      } else {
+        const text = seg.content.trim();
+        if (text) {
+          html += `<div class="text-block">${text
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")}</div>`;
+        }
+      }
+    });
+
+    resultContainer.innerHTML = html;
     hljs.highlightAll();
+
+    // botón de copiar solo el código
+    const codeOnly = segments
+      .filter((s) => s.type === "code")
+      .map((s) => s.content)
+      .join("\n\n");
+
     copyBtn.onclick = () => {
-      navigator.clipboard.writeText(cleanResult);
+      navigator.clipboard.writeText(codeOnly);
       copyBtn.textContent = "Copiado!";
       setTimeout(() => (copyBtn.textContent = "Copiar"), 2000);
     };
@@ -182,7 +218,7 @@ window.addEventListener("message", (event) => {
   if (message.command === "resetInputs") {
     classNameVal = "";
     methodNameVal = "";
-    setStep(0); 
+    setStep(0);
     typingIndicator.style.display = "none";
     resultCard.style.display = "none";
   }
