@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
 import { buildPrompt } from './promptBuilder';
-import { generateWithDeepSeek, generateWithGemini, generateWithChatGPT } from './llm';
+import { generateWithGemini, generateWithOpenRouter } from './llm';
 import { collectClassAndMethod } from './collectInputs';
 
 dotenv.config({ path: path.join(__dirname, "..", ".env") });
@@ -41,17 +41,30 @@ export function activate(context: vscode.ExtensionContext) {
             }
         );
 
-        const models: { id: string; name: string }[] = []
+        const models: { id: string; name: string; type?: string; fullModel?: string }[] = [];
 
         if (process.env.GEMINI_API_KEY) {
-            models.push({ id: 'gemini', name: 'Google Gemini' });
-        }
-        if (process.env.DEEPSEEK_API_KEY) {
-            models.push({ id: 'deepseek', name: 'DeepSeek' });
+            models.push({ id: "gemini", name: "Google Gemini", type: "direct" });
         }
 
-        if (process.env.CHATGPT_API_KEY) {
-            models.push({ id: 'chatgpt', name: 'ChatGPT' })
+        if (process.env.OPENROUTER_API_KEY) {
+            // lee el archivo
+            const jsonPath = path.join(context.extensionPath, "openrouter.models.json");
+            let openRouterModels: any[] = [];
+            try {
+                const raw = fs.readFileSync(jsonPath, "utf8");
+                openRouterModels = JSON.parse(raw);
+            } catch (err) {
+                console.error("No se pudo leer el archivo de modelos de OpenRouter:", err);
+            }
+
+            models.push({ id: "openrouter", name: "OpenRouter", type: "group" });
+
+            // añade submodelos para el frontend
+            panel.webview.postMessage({
+                command: "setSubModels",
+                subModels: openRouterModels
+            });
         }
 
         // Paths
@@ -101,10 +114,13 @@ export function activate(context: vscode.ExtensionContext) {
 
                 if (message.model === "gemini") {
                     result = await generateWithGemini(prompt);
-                } else if (message.model === "deepseek") {
-                    result = await generateWithDeepSeek(prompt);
-                } else if (message.model === "chatgpt") {
-                    result = await generateWithChatGPT(prompt);
+                } else if (message.model === "openrouter") {
+                    const sub = message.subModel;
+                    if (!sub) {
+                        vscode.window.showErrorMessage("Debes seleccionar un submodelo de OpenRouter.");
+                        return;
+                    }
+                    result = await generateWithOpenRouter(prompt, sub);
                 }
                 panel.webview.postMessage({ command: 'showResult', result });
             }

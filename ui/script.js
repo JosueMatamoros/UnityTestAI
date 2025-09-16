@@ -22,6 +22,8 @@ const stepLabel = document.getElementById("stepLabel");
 const stepInput = document.getElementById("stepInput");
 // Badge de listo (tercer paso)
 const readyBadge = document.getElementById("readyBadge");
+// Sub-modelos de OpenRouters
+let subSelect = null;
 
 let step = 0; // 0 = pedir clase, 1 = pedir método, 2 = listo
 let classNameVal = "";
@@ -106,8 +108,11 @@ generateBtn.addEventListener("click", () => {
   resultContainer.innerText = "";
 
   const model = document.getElementById("modelSelect").value;
+  const subModelEl = document.getElementById("openRouterSub");
+  const subModel =
+    subModelEl && subModelEl.style.display !== "none" ? subModelEl.value : null;
   // Llamar a generateTest en el backend
-  vscode.postMessage({ command: "generateTest", model });
+  vscode.postMessage({ command: "generateTest", model, subModel });
 });
 
 // Recibir respuesta del backend al recibir los resultados del LLM
@@ -184,7 +189,26 @@ window.addEventListener("message", (event) => {
       opt.textContent = m.name;
       select.appendChild(opt);
     });
+    select.addEventListener("change", () => {
+      if (subSelect)
+        subSelect.style.display =
+          select.value === "openrouter" ? "inline-block" : "none";
+    });
   }
+
+  if (message.command === "setSubModels") {
+    subSelect = document.createElement("select");
+    subSelect.id = "openRouterSub";
+    subSelect.style.display = "none";
+    message.subModels.forEach((m) => {
+      const opt = document.createElement("option");
+      opt.value = m.model;
+      opt.textContent = m.label;
+      subSelect.appendChild(opt);
+    });
+    document.querySelector(".actions").appendChild(subSelect);
+  }
+
   // Responde al requestInputs del backend
   if (message.command === "requestInputs") {
     // sincroniza por si escribió sin Enter
@@ -232,9 +256,15 @@ window.addEventListener("message", (event) => {
     typingIndicator.style.display = "flex";
     resultContainer.innerText = "";
 
+    const model = document.getElementById("modelSelect").value;
+    const subEl = document.getElementById("openRouterSub");
+    const subModel =
+      subEl && subEl.style.display !== "none" ? subEl.value : null;
+
     vscode.postMessage({
       command: "generateTest",
-      model: document.getElementById("modelSelect").value,
+      model,
+      subModel,
     });
   }
 });
