@@ -46,11 +46,10 @@ export function activate(context: vscode.ExtensionContext) {
         if (process.env.GEMINI_API_KEY) {
             models.push({ id: "gemini", name: "Google Gemini", type: "direct" });
         }
-
+        let openRouterModels: any[] = [];
         if (process.env.OPENROUTER_API_KEY) {
             // lee el archivo
             const jsonPath = path.join(context.extensionPath, "openrouter.models.json");
-            let openRouterModels: any[] = [];
             try {
                 const raw = fs.readFileSync(jsonPath, "utf8");
                 openRouterModels = JSON.parse(raw);
@@ -60,11 +59,6 @@ export function activate(context: vscode.ExtensionContext) {
 
             models.push({ id: "openrouter", name: "OpenRouter", type: "group" });
 
-            // añade submodelos para el frontend
-            panel.webview.postMessage({
-                command: "setSubModels",
-                subModels: openRouterModels
-            });
         }
 
         // Paths
@@ -104,6 +98,14 @@ export function activate(context: vscode.ExtensionContext) {
                 }
 
                 panel.webview.postMessage({ command: 'goToStep2', className, methodName });
+                return;
+            }
+
+            if (message.command === 'webviewReady') {
+                panel.webview.postMessage({ command: "setModels", models });
+                if (openRouterModels.length) {
+                    panel.webview.postMessage({ command: "setSubModels", subModels: openRouterModels });
+                }
                 return;
             }
 

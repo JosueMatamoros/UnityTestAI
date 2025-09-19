@@ -294,6 +294,110 @@ header .logo {
   font-size: 13px;
 }
 
+/* ========================== Dropdown Menu ========================== */
+.dropdown { /* Contenedor base del dropdown */
+  position: relative;
+  display: inline-block;
+}
+
+.dropbtn { /* Botón principal */
+  background: #3c3c3c;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  height: 40px;
+  white-space: nowrap;
+}
+
+.dropbtn:hover {
+  background: #505050;
+}
+
+.dropdown-content { /* Contenedor del menú */
+  display: none; 
+  position: absolute;
+  bottom: 100%;         
+  left: 0;              
+  background: #2d2d2d;
+  min-width: 200px;     
+  border-radius: 8px;
+  box-shadow: 0px -2px 8px rgba(0,0,0,0.5);
+  z-index: 2000;
+  overflow: visible;    
+}
+
+.dropdown-content a { /* Ítems normales del menú */
+  color: #fff;
+  padding: 8px 12px;
+  text-decoration: none;
+  display: block;
+  white-space: nowrap;
+}
+
+.dropdown-content a:hover {
+  background: #444;
+}
+
+/* Mostrar dropdown al hover */
+.dropdown:hover .dropdown-content,
+.dropdown-content:hover {
+  display: block;
+}
+/* ========================== Submenú ========================== */
+.submenu {
+  position: relative;
+}
+
+.submenu-title {/* Título del submenú */
+  display: block;
+  padding: 8px 12px;
+  color: #fff;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.submenu-title::after {
+  content: "▶";
+  float: right;
+  font-size: 12px;
+}
+
+.submenu-content { /* Contenido del submenú */
+  display: none;
+  position: absolute;
+  top: 0;
+  right: 100%;      
+  left: auto;       
+  margin-right: 0;   
+  background: #2d2d2d;
+  min-width: 200px;
+  border-radius: 8px;
+  box-shadow: 0px 2px 8px rgba(0,0,0,0.5);
+  z-index: 2000;
+}
+
+.submenu-content a { /* Ítems dentro del submenú */
+  padding: 8px 12px;
+  color: #fff;
+  text-decoration: none;
+  display: block;
+  white-space: nowrap;
+}
+
+.submenu-content a:hover {
+  background: #444;
+}
+
+/* Mostrar submenú al hover */
+.submenu:hover .submenu-content,
+.submenu-content:hover {
+  display: block;
+}
+
 /* ========================== Actions container ========================== */
 .actions { /* Estilo principal de los actions */
   display: flex;

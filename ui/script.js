@@ -3,6 +3,11 @@ hljs.highlightAll();
 // API de VSCode
 const vscode = acquireVsCodeApi();
 
+// Avisar al backend que ya se cargó el DOM
+window.addEventListener("DOMContentLoaded", () => {
+  vscode.postMessage({ command: "webviewReady" });
+});
+
 // Botón para togglear el contenedor de código (input) y su contenedor
 const toggleBtn = document.getElementById("toggleBtn");
 const codeContainer = document.getElementById("codeContainer");
@@ -28,6 +33,8 @@ let subSelect = null;
 let step = 0; // 0 = pedir clase, 1 = pedir método, 2 = listo
 let classNameVal = "";
 let methodNameVal = "";
+let selectedModel = null;
+let selectedSubModel = null;
 
 function updateStepper(stepNum) {
   // Actualiza el stepper visual
@@ -102,17 +109,15 @@ toggleBtn.addEventListener("click", () => {
 
 // Generar pruebas
 generateBtn.addEventListener("click", () => {
-  // Mostrar tarjeta resultado
   resultCard.style.display = "block";
   typingIndicator.style.display = "flex";
   resultContainer.innerText = "";
 
-  const model = document.getElementById("modelSelect").value;
-  const subModelEl = document.getElementById("openRouterSub");
-  const subModel =
-    subModelEl && subModelEl.style.display !== "none" ? subModelEl.value : null;
-  // Llamar a generateTest en el backend
-  vscode.postMessage({ command: "generateTest", model, subModel });
+  vscode.postMessage({
+    command: "generateTest",
+    model: selectedModel,
+    subModel: selectedSubModel,
+  });
 });
 
 // Recibir respuesta del backend al recibir los resultados del LLM
@@ -181,32 +186,83 @@ window.addEventListener("message", (event) => {
   }
   // Llena el select de modelos
   if (message.command === "setModels") {
-    const select = document.getElementById("modelSelect");
-    select.innerHTML = "";
+    const container = document.getElementById("modelMenuContainer");
+    container.innerHTML = "";
+
+    const dropdown = document.createElement("div");
+    dropdown.className = "dropdown";
+
+    const trigger = document.createElement("button");
+    trigger.className = "dropbtn";
+    trigger.id = "modelBtn";
+    trigger.textContent = "Selecciona modelo";
+
+    const dropdownContent = document.createElement("div");
+    dropdownContent.className = "dropdown-content";
+
     message.models.forEach((m) => {
-      const opt = document.createElement("option");
-      opt.value = m.id;
-      opt.textContent = m.name;
-      select.appendChild(opt);
+      if (m.id === "openrouter") {
+        // Crear item con submenu vacío
+        const submenu = document.createElement("div");
+        submenu.className = "submenu";
+
+        const submenuTitle = document.createElement("a");
+        submenuTitle.className = "submenu-title";
+        submenuTitle.textContent = "OpenRouter";
+
+        const submenuContent = document.createElement("div");
+        submenuContent.className = "submenu-content";
+        submenuContent.id = "openRouterSubmenu";
+
+        submenu.appendChild(submenuTitle);
+        submenu.appendChild(submenuContent);
+        dropdownContent.appendChild(submenu);
+      } else {
+        // Modelos normales
+        const item = document.createElement("a");
+        item.textContent = m.name;
+        item.dataset.model = m.id;
+        item.addEventListener("click", () => {
+          selectedModel = m.id;
+          selectedSubModel = null;
+          trigger.textContent = m.name;
+        });
+        dropdownContent.appendChild(item);
+      }
     });
-    select.addEventListener("change", () => {
-      if (subSelect)
-        subSelect.style.display =
-          select.value === "openrouter" ? "inline-block" : "none";
-    });
+
+    dropdown.appendChild(trigger);
+    dropdown.appendChild(dropdownContent);
+    container.appendChild(dropdown);
   }
 
   if (message.command === "setSubModels") {
-    subSelect = document.createElement("select");
-    subSelect.id = "openRouterSub";
-    subSelect.style.display = "none";
-    message.subModels.forEach((m) => {
-      const opt = document.createElement("option");
-      opt.value = m.model;
-      opt.textContent = m.label;
-      subSelect.appendChild(opt);
+    const submenuContent = document.getElementById("openRouterSubmenu");
+    submenuContent.innerHTML = "";
+
+    message.subModels.forEach((m, i) => {
+      const subItem = document.createElement("a");
+      subItem.textContent = m.label;
+      subItem.dataset.model = m.model;
+
+      subItem.addEventListener("click", () => {
+        selectedModel = "openrouter";
+        selectedSubModel = m.model; 
+        document.getElementById("modelBtn").textContent = m.label;
+        vscode.postMessage({
+          command: "log",
+          text: `Seleccionado: ${m.label} (${m.model})`, 
+        });
+      });
+
+      submenuContent.appendChild(subItem);
+
+      if (i === 0) {
+        selectedModel = "openrouter";
+        selectedSubModel = m.model;
+        document.getElementById("modelBtn").textContent = m.label;
+      }
     });
-    document.querySelector(".actions").appendChild(subSelect);
   }
 
   // Responde al requestInputs del backend
@@ -256,15 +312,10 @@ window.addEventListener("message", (event) => {
     typingIndicator.style.display = "flex";
     resultContainer.innerText = "";
 
-    const model = document.getElementById("modelSelect").value;
-    const subEl = document.getElementById("openRouterSub");
-    const subModel =
-      subEl && subEl.style.display !== "none" ? subEl.value : null;
-
     vscode.postMessage({
       command: "generateTest",
-      model,
-      subModel,
+      model: selectedModel,
+      subModel: selectedSubModel,
     });
   }
 });
