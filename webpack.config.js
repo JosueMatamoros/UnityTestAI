@@ -45,4 +45,17 @@ const extensionConfig = {
     level: "log", // enables logging required for problem matchers
   },
 };
-module.exports = [ extensionConfig ];
+
+const webviewConfig = {
+  target: 'web',
+  mode: 'production',
+  entry: './ui/scripts/main.js',
+  output: {
+    path: path.resolve(__dirname, 'dist'),
+    filename: 'bundle.js', // este es el que vas a inyectar
+  },
+  resolve: {
+    extensions: ['.js'],
+  },
+};
+module.exports = [ extensionConfig, webviewConfig ];

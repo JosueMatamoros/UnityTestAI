@@ -36,7 +36,9 @@ export function activate(context: vscode.ExtensionContext) {
                 enableScripts: true,
                 localResourceRoots: [
                     vscode.Uri.file(path.join(context.extensionPath, 'ui')),
-                    vscode.Uri.file(path.join(context.extensionPath, 'assets'))
+                    vscode.Uri.file(path.join(context.extensionPath, 'assets')),
+                    vscode.Uri.file(path.join(context.extensionPath, 'dist')),
+
                 ]
             }
         );
@@ -65,7 +67,7 @@ export function activate(context: vscode.ExtensionContext) {
         const uiPath = path.join(context.extensionPath, 'ui', 'index.html');
         const cssUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'ui', 'style.css')));
         const logoUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'assets', 'logo.png')));
-        const scriptUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'ui', 'script.js')));
+        const scriptUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'dist', 'bundle.js')));
 
         // Cargar HTML
         let html = fs.readFileSync(uiPath, 'utf8');
