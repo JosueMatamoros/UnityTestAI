@@ -23,7 +23,7 @@ The tool helps to determine which LLM provides the best results in terms of cove
 - Code highlighting and copy-to-clipboard.
 
 
-## Installation
+## Deployment of the Extension
 1. Clone the repository to your local machine:
    ```bash
    git clone https://github.com/your-user/unitytestia.git
@@ -31,7 +31,8 @@ The tool helps to determine which LLM provides the best results in terms of cove
 2. Open the folder in Visual Studio Code.
 3. Run:
    ```bash
-   npm install
+   # install dependencies and build/watch to generate dist/ (bundle.js & bundle.css)   
+   npm install && npm run watch 
    ```
 4. Press `F5` to launch the extension in a new VSCode window.
 
@@ -48,7 +49,7 @@ OPENROUTER_API_KEY=your_openrouter_key
 > It is **essential** to define the keys exactly as shown in the example above so that the extension can recognize them correctly.
 
 
-## Usage
+## Extension Usage
 1. Open your Unity project in Visual Studio Code **from the `Assets/` folder** so the extension can access the source code correctly.
 2. Open any C# script inside VSCode.
 3. Launch the **UnityTestIA** command:
@@ -65,91 +66,79 @@ OPENROUTER_API_KEY=your_openrouter_key
 
 ## Project Structure
 ```
+├── prompts/
+│   └── basePrompt.txt            # Prompt base usado por los LLMs
 ├── src/
-│   ├── extension.ts       # VSCode backend
-│   ├── llm.ts             # API calls for Gemini & OpenRouter
-│   ├── promptBuilder.ts   # Builds the prompt for LLMs
-│   └── collectInputs.ts   # Handles user input validation
+│   ├── extension.ts              # Punto de entrada, activa la extensión en VSCode
+│   ├── webview/
+│   │   ├── webviewManager.ts     # Configuración y lógica del panel webview
+│   │   └── collectInputs.ts      # Maneja la sincronización de inputs entre el webview y backend
+│   ├── llm/
+│   │   ├── gemini.ts             # Implementación de la llamada a Google Gemini
+│   │   ├── openrouter.ts         # Implementación de la llamada a OpenRouter
+│   │   └── index.ts              # Re-exporta de forma unificada las funciones LLM
+│   ├── prompts/
+│   │   └── promptBuilder.ts      # Construye el prompt final con clase, método y código
+│   ├── utils/
+│   │   ├── codeValidation.ts     # Verifica que la clase y el método existan en el código
+│   │   └── modelLoader.ts        # Carga y valida modelos de OpenRouter desde JSON
+│   └── test/
+│       └── extension.test.ts     # Tests iniciales de la extensión
 ├── ui/
-│   ├── index.html         # Webview UI
-│   ├── script.js          # Webview logic
-│   └── style.css          # Styling
-├── openrouter.models.json # Submodels available in OpenRouter
-└── README.md
+│   ├── index.html                # HTML de la interfaz webview
+│   ├── scripts/
+│   │   ├── main.js               # Entrada principal del frontend
+│   │   ├── domUtils.js           # Utilidades genéricas de manipulación del DOM
+│   │   ├── modelMenu.js          # Lógica para selección de modelos y submodelos
+│   │   ├── resultRenderer.js     # Renderiza resultados devueltos por el backend
+│   │   └── stepper.js            # Manejo del stepper (flujo de inputs)
+│   └── styles/
+│       ├── base.css              # Estilos base y globales
+│       ├── main.css              # Estilos principales del layout
+│       ├── components.css        # Estilos para tarjetas, botones y elementos UI
+│       ├── actions.css           # Estilos específicos del contenedor de acciones
+│       ├── stepper.css           # Estilos del stepper y estados
+│       └── animations.css        # Animaciones y microinteracciones
+├── assets/
+│   └── logo.png                  # Logo mostrado en la interfaz
+├── openrouter.models.json        # Configuración de submodelos de OpenRouter
+└── webpack.config.js             # Configuración para generar el bundle (JS y CSS)
+
 ```
 ---
 ## Prompt Specification
 
-The extension uses the following prompt as its core instruction for LLMs:
+The extension relies on a **base prompt** that defines how LLMs should generate Unity unit tests.  
+Only an excerpt is shown here for clarity:
 
 > [!IMPORTANT]
 > ```
 > You are an expert Software Engineer specialized in testing and quality assurance.
 > Your task is to generate unit tests using White Box methods.
 > Objective:
-> Generate the absolute minimum number of Unity Test Framework (NUnit 3.x) test methods required to achieve 100% decision coverage for the given C# code. Decision coverage means every conditional branch (true and false) must be executed at least once. Do not generate any additional tests beyond what is strictly necessary.
-> Scope:
-> • Only generate tests for the <method-name> method of the class <class-name>.
-> • Do not test other methods, functions, or behaviors outside this method.
-> • Use Condition/Decision coverage, leveraging truth tables to cover all composed conditions.
-> • Achieve 100% line, condition, and condition/decision coverage.
-> Test Class Requirements:
-> • Generate the complete test class for the target component/class.
-> • Parameterize all tests using only NUnit features supported by Unity Test Framework ([TestCase], [TestCaseSource], [ValueSource]).
-> • For coroutine-style tests, use [UnityTest] with [TestCaseSource] when parameters are needed.
-> • Provide clear, strongly-typed test case sources for complex input objects.
-> • Include all necessary using statements and namespaces.
-> • Use only the dependencies listed in the project’s manifest.json file. This includes:
->     o Unity Test Framework (com.unity.test-framework)
->     o Any NuGet packages installed (e.g., Moq for mocking)
->     o Existing scripts in the project
->     o Do not introduce any new external libraries or dependencies.
->     o Ensure the correct folder path is used (e.g., Assets/test/) with proper package/import statements.
-> Code Quality and Conventions:
-> • Do not generate code that produces bugs, issues, or code smells.
-> • All objects must be fully and correctly initialized.
-> • For numeric inputs, include both positive and negative values.
-> • Code must pass static analysis (e.g., SonarCloud/SonarQube) without errors.
-> • Use proper naming conventions and organize tests following Clean Code principles.
-> • Repeated code must be factored using [SetUp] and [TearDown] as needed.
-> • Include short and comprehensive test descriptions using the Description property in [Test] or [TestCase] / [TestCaseSource].
-> • Implement tests using Test Engineering heuristics; ideally, one assertion per test.
-> Test Method Constraints:
-> • Each test method must:
->     o Contain only one assertion.
->     o Be annotated with [Timeout(1000)].
->     o Have cyclomatic complexity = 1 (no branching in the test body).
->     o Have a descriptive and realistic name.
->     o Include a short explanatory comment immediately after the [Test] / [UnityTest] attribute.
-> Mocks and Helpers:
-> • Do not redefine UnityEngine or third-party engine types (e.g., DG.Tweening).
-> • Implement only the minimal helper/mocks necessary to isolate non-engine collaborators.
-> • Use Moq (NuGet) for mocking.
-> • Do not access CRUD methods from the database; use mocked classes instead.
-> • Instantiate GameObjects at runtime in tests; do not use prefabs.
-> • Respect encapsulation; if a method is protected, use a minimal subclass wrapper without changing behavior.
-> Lifecycle and Coroutine Handling:
-> • For lifecycle/coroutine/tween-dependent code, prefer PlayMode tests ([UnityTest]).
-> • Wait just enough time or pass zero tween duration to observe effects.
-> Exception Handling:
-> • Use try/catch or assertThrows as appropriate.
-> • Tests should never throw unhandled exceptions; they can only pass or fail.
-> Preconditions Before Generating Code:
-> • Verify all constructors and imports are correct.
-> • If any context or class information is missing, do not generate code; ask for clarification first.
-> • Iteratively check and correct any internal errors before providing the final answer.
-> Final Requirements:
-> • All tests must be in one C# class file.
-> • Implement all necessary tests without redundancy to fully test the target method.
-> • Do not include any TODOs.
-> • Ensure the code compiles and fulfills all requirements.
-> Input Code:
-> {code}
-> Instruction:
-> YOU MUST IMPLEMENT ALL TESTS! I WILL NOT CODE ANYTHING! DO ALL ASSERTIONS! DO NOT ADD ANY TODO LINE. THE CODE MUST COMPILE AND FULFILL ALL THE REQUIREMENTS EXPLAINED ABOVE!
+> Generate the absolute minimum number of Unity Test Framework (NUnit 3.x) 
+> test methods required to achieve 100% decision coverage...
 > ```
+> *(excerpt)*
 
 ---
+
+### Prompt location
+The complete specification is stored in:
+
+```bash
+   /prompts/basePrompt.txt
+
+```
+
+### Customization
+If you want to:
+- Adjust coverage strategy (e.g., black-box instead of white-box),
+- Change test framework conventions,
+- Or simplify the constraints,
+
+you can directly **edit** the `basePrompt.txt` file.  
+The extension will automatically pick up the new instructions on the next run.
 
 ## Contributing
 > [!NOTE]
