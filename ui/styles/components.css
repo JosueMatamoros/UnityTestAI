@@ -1,0 +1,123 @@
+/* ========================== Card styles ========================== */
+.card {
+  background: #2d2d30;
+  padding: 12px;
+  border-radius: 10px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.4);
+  margin: 10px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+/* ========================== C# Label ========================== */
+.lang-label {
+  font-weight: bold;
+  font-size: 14px;
+}
+
+/* ========================== Active Class container ========================== */
+#toggleBtn {
+  background: #3c3c3c;
+  color: #ffffff;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+#toggleBtn:hover { background: #505050; }
+
+#codeContainer {
+  transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+  overflow: hidden;
+}
+#codeContainer.collapsed { max-height: 0; opacity: 0; }
+
+/* ========================== Select group ========================== */
+.select-group { display: flex; flex-direction: column; }
+
+#modelSelect {
+  background: #3c3c3c;
+  color: #fff;
+  border: none;
+  height: 40px;
+  border-radius: 8px;
+  padding: 0 12px;             
+  display: inline-block;       
+  font-size: 14px;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.2s ease-in-out;
+}
+#modelSelect:hover { background: #505050; }
+#modelSelect:focus { background: #4a4a4a; box-shadow: 0 0 0 2px rgba(11,122,204,0.35); }
+
+/* ========================== Generate button ========================== */
+#generateBtn {
+  background: #007acc;
+  border: none;
+  border-radius: 50%;
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease-in-out, transform 0.1s ease-in-out;
+}
+#generateBtn:hover { background: #005f99; }
+#generateBtn:active { transform: scale(0.95); }
+#generateBtn .icon { color: #fff; font-size: 16px; }
+
+/* ========================== Copy button ========================== */
+#copyBtn {
+  background: #007acc; color: #fff; border: none;
+  padding: 4px 10px; border-radius: 4px;
+  cursor: pointer; font-size: 12px;
+}
+#copyBtn:hover { background: #005f99; }
+
+/* ========================== Dropdown Menu ========================== */
+.dropdown { position: relative; display: inline-block; }
+.dropbtn {
+  background: #3c3c3c; color: #fff;
+  border: none; border-radius: 8px;
+  padding: 8px 16px; cursor: pointer; font-size: 14px;
+  height: 40px; white-space: nowrap;
+}
+.dropbtn:hover { background: #505050; }
+
+.dropdown-content {
+  display: none; position: absolute;
+  bottom: 100%; left: 0;
+  background: #2d2d2d; min-width: 200px;
+  border-radius: 8px;
+  box-shadow: 0px -2px 8px rgba(0,0,0,0.5);
+  z-index: 2000; overflow: visible;
+}
+.dropdown-content a {
+  color: #fff; padding: 8px 12px; text-decoration: none;
+  display: block; white-space: nowrap;
+}
+.dropdown-content a:hover { background: #444; }
+.dropdown:hover .dropdown-content,
+.dropdown-content:hover { display: block; }
+
+/* ========================== Submenú ========================== */
+.submenu { position: relative; }
+.submenu-title {
+  display: block; padding: 8px 12px;
+  color: #fff; text-decoration: none;
+  cursor: pointer; white-space: nowrap;
+}
+.submenu-title::after { content: "▶"; float: right; font-size: 12px; }
+.submenu-content {
+  display: none; position: absolute; top: 0; right: 100%;
+  background: #2d2d2d; min-width: 200px; border-radius: 8px;
+  box-shadow: 0px 2px 8px rgba(0,0,0,0.5); z-index: 2000;
+}
+.submenu-content a { padding: 8px 12px; color: #fff; display: block; }
+.submenu-content a:hover { background: #444; }
+.submenu:hover .submenu-content,
+.submenu-content:hover { display: block; }

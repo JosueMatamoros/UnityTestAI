@@ -1,0 +1,22 @@
+/* ========================== Main styles ==========================*/
+main {
+  min-height: 100vh;         
+  display: flex;
+  flex-direction: column;
+}
+
+/* ========================== Body styles ==========================*/
+body {
+  font-family: Arial, sans-serif;
+  background: #1e1e1e;
+  color: #ffffff;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+/* ========================== Logo ========================== */
+header .logo {
+  height: 40px;
+  margin: 10px;
+}

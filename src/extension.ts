@@ -7,7 +7,6 @@ import { generateWithGemini, generateWithOpenRouter } from './llm';
 import { collectClassAndMethod } from './collectInputs';
 
 dotenv.config({ path: path.join(__dirname, "..", ".env") });
-
 function checkSymbols(code: string, cls: string, method: string) {
     const classRegex = new RegExp(`\\bclass\\s+${cls}\\b`, 'i');
     const methodRegex = new RegExp(`\\b${method}\\s*\\(`, 'i');
@@ -65,7 +64,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         // Paths
         const uiPath = path.join(context.extensionPath, 'ui', 'index.html');
-        const cssUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'ui', 'style.css')));
+        const cssUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'dist', 'bundle.css')));
         const logoUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'assets', 'logo.png')));
         const scriptUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'dist', 'bundle.js')));
 

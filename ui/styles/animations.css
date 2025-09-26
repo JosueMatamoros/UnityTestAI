@@ -1,0 +1,17 @@
+/* ========================== "Analizando..." indicator ========================== */
+.typing { display: flex; align-items: center; gap: 5px; margin-top: 10px; }
+.typing span { font-size: 14px; color: #ccc; }
+
+/* ========================== Dot animation ========================== */
+.dot {
+  width: 6px; height: 6px; background: #aaa;
+  border-radius: 50%; animation: blink 1.4s infinite both;
+}
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes blink {
+  0% { opacity: 0.2; }
+  20% { opacity: 1; }
+  100% { opacity: 0.2; }
+}

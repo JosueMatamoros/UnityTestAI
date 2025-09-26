@@ -1,0 +1,27 @@
+/* ========================== Step input ========================== */
+.step-input {
+  display: flex; flex-direction: column; gap: 8px;
+  flex: 1; margin: 0 20px;
+}
+.step-input .lbl { font-size: 12px; color: #aaa; }
+.step-input input {
+  background: #3c3c3c; color: #fff; border: none;
+  height: 40px; border-radius: 8px; padding: 0 12px;
+  font-size: 14px; outline: none;
+  transition: background 0.2s, box-shadow 0.15s;
+}
+.step-input input:focus { background: #4a4a4a; box-shadow: 0 0 0 2px rgba(11,122,204,0.35); }
+.step-input input.error { box-shadow: 0 0 0 2px rgba(217,83,79,0.7); }
+
+/* ========================== STEPPER ========================== */
+.stepper { display: flex; flex-direction: column; gap: 6px; margin: 10px 20px 0; }
+.stepper-label { font-size: 12px; color: #aaa; display: flex; justify-content: space-between; }
+.stepper-bar { height: 6px; background: #3c3c3c; border-radius: 999px; overflow: hidden; }
+.stepper-fill { height: 100%; width: 0%; background: #007acc; transition: width 0.3s ease-in-out; }
+
+/* ========================== Estado listo ========================== */
+.ready-badge {
+  background: #22313f; color: #d6f0ff;
+  border: 1px solid rgba(0, 122, 204, 0.4);
+  border-radius: 8px; padding: 8px 12px; font-size: 13px;
+}

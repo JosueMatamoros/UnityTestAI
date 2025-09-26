@@ -1,0 +1,30 @@
+/* ========================== Actions container ========================== */
+.actions {
+  display: flex; align-items: flex-end; justify-content: flex-end;
+  gap: 12px; margin: 20px; background: #2d2d2d;
+  padding: 12px 16px; border-radius: 12px;
+  box-shadow: 0px 2px 6px rgba(0,0,0,0.3);
+  margin-top: auto; position: sticky; bottom: 0;
+}
+.actions .input-group {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px;
+}
+.actions .input-group .lbl { font-size: 12px; color: #aaa; margin-bottom: 2px; }
+.actions .input-group input {
+  background: #3c3c3c; color: #fff; border: none;
+  height: 40px; border-radius: 8px; padding: 0 12px;
+  font-size: 14px; line-height: 40px; box-sizing: border-box;
+  outline: none; transition: background 0.2s, box-shadow 0.15s;
+}
+.actions .input-group input:focus { background: #4a4a4a; box-shadow: 0 0 0 2px rgba(11,122,204,0.35); }
+.actions .input-group input.error { box-shadow: 0 0 0 2px rgba(217,83,79,0.7); }
+.actions .select-group { flex: 0 0 auto; }
+.actions .input-group input, #modelSelect { height: 40px; line-height: 40px; }
+
+/* Responsive */
+@media (max-width: 720px) {
+  .actions { flex-wrap: wrap; gap: 10px; }
+  .actions .input-group { order: 1; width: 100%; }
+  .actions .select-group { order: 2; }
+  #generateBtn { order: 3; }
+}

@@ -3,6 +3,7 @@
 'use strict';
 
 const path = require('path');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
 //@ts-check
 /** @typedef {import('webpack').Configuration} WebpackConfig **/
@@ -46,16 +47,31 @@ const extensionConfig = {
   },
 };
 
+/** @type WebpackConfig */
 const webviewConfig = {
   target: 'web',
   mode: 'production',
   entry: './ui/scripts/main.js',
   output: {
     path: path.resolve(__dirname, 'dist'),
-    filename: 'bundle.js', // este es el que vas a inyectar
+    filename: 'bundle.js',
   },
   resolve: {
     extensions: ['.js'],
   },
+  module: {
+    rules: [
+      {
+        test: /\.css$/,
+        use: [MiniCssExtractPlugin.loader, 'css-loader'],
+      },
+    ],
+  },
+  plugins: [
+    new MiniCssExtractPlugin({
+      filename: 'bundle.css', 
+    }),
+  ],
 };
+
 module.exports = [ extensionConfig, webviewConfig ];

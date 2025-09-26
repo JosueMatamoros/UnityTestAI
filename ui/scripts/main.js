@@ -2,6 +2,7 @@ import { toggleElement } from "./domUtils.js";
 import { renderResult } from "./resultRenderer.js";
 import { getStepperState, setStepperState, applyStepUI } from "./stepper.js";
 import { setModels, setSubModels, getSelectedModel } from "./modelMenu.js";
+import "../styles/main.css";
 
 const vscode = acquireVsCodeApi();
 
