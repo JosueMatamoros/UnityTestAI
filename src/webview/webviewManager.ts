@@ -6,6 +6,7 @@ import { buildPrompt } from '../prompts/promptBuilder';
 import { generateWithGemini, generateWithOpenRouter, generateWithChatGPT, generateWithDeepSeek } from '../llm';
 import { checkSymbols } from '../utils/codeValidation';
 import { loadOpenRouterModels } from '../utils/modelLoader';
+import { saveUnityTest } from '../utils/testSaver';
 
 export async function createWebviewPanel(context: vscode.ExtensionContext, code: string) {
   const panel = vscode.window.createWebviewPanel(
@@ -109,7 +110,11 @@ export async function createWebviewPanel(context: vscode.ExtensionContext, code:
           }
           result = await generateWithOpenRouter(prompt, message.subModel);
         }
-
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (workspaceFolders && workspaceFolders.length > 0) {
+          const workspaceRoot = workspaceFolders[0].uri.fsPath;
+          saveUnityTest(workspaceRoot, result, className, message.model);
+        }
         panel.webview.postMessage({ command: 'showResult', result });
         break;
       }
