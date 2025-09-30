@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { collectClassAndMethod } from '../collectInputs';
 import { buildPrompt } from '../prompts/promptBuilder';
-import { generateWithGemini, generateWithOpenRouter } from '../llm';
+import { generateWithGemini, generateWithOpenRouter, generateWithChatGPT, generateWithDeepSeek } from '../llm';
 import { checkSymbols } from '../utils/codeValidation';
 import { loadOpenRouterModels } from '../utils/modelLoader';
 
@@ -26,6 +26,13 @@ export async function createWebviewPanel(context: vscode.ExtensionContext, code:
   const models: { id: string; name: string; type?: string }[] = [];
   if (process.env.GEMINI_API_KEY) {
     models.push({ id: "gemini", name: "Google Gemini", type: "direct" });
+  }
+  if (process.env.OPENAI_API_KEY) {
+    models.push({ id: "chatgpt", name: "ChatGPT", type: "direct" });
+  }
+  
+  if (process.env.DEEPSEEK_API_KEY) {
+    models.push({ id: "deepseek", name: "DeepSeek", type: "direct" });
   }
 
   let openRouterModels: any[] = [];
@@ -91,6 +98,10 @@ export async function createWebviewPanel(context: vscode.ExtensionContext, code:
         let result = "Modelo no válido";
         if (message.model === "gemini") {
           result = await generateWithGemini(prompt);
+        } else if (message.model === "chatgpt") {
+          result = await generateWithChatGPT(prompt, message.subModel || "gpt-4o-mini");
+        } else if (message.model === "deepseek") {
+          result = await generateWithDeepSeek(prompt);
         } else if (message.model === "openrouter") {
           if (!message.subModel) {
             vscode.window.showErrorMessage("Debes seleccionar un submodelo de OpenRouter.");
