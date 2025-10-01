@@ -2,9 +2,11 @@ import { toggleElement } from "./domUtils.js";
 import { renderResult } from "./resultRenderer.js";
 import { getStepperState, setStepperState, applyStepUI } from "./stepper.js";
 import { setModels, setSubModels, getSelectedModel } from "./modelMenu.js";
+import { initJsonLoader } from "./jsonLoader.js";
 import "../styles/main.css";
 
 const vscode = acquireVsCodeApi();
+window.vscode = vscode;
 
 // DOM refs
 const toggleBtn = document.getElementById("toggleBtn");
@@ -22,6 +24,7 @@ const stepInput = document.getElementById("stepInput");
 const readyBadge = document.getElementById("readyBadge");
 
 hljs.highlightAll();
+initJsonLoader();
 
 // Avísale al backend que el DOM está listo
 window.addEventListener("DOMContentLoaded", () => {

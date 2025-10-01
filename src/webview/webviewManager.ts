@@ -31,7 +31,7 @@ export async function createWebviewPanel(context: vscode.ExtensionContext, code:
   if (process.env.OPENAI_API_KEY) {
     models.push({ id: "chatgpt", name: "ChatGPT", type: "direct" });
   }
-  
+
   if (process.env.DEEPSEEK_API_KEY) {
     models.push({ id: "deepseek", name: "DeepSeek", type: "direct" });
   }
@@ -92,6 +92,41 @@ export async function createWebviewPanel(context: vscode.ExtensionContext, code:
         break;
       }
 
+      case "generateFromConfig": {
+        const { className, methodName, model, subModel } = message;
+        const prompt = buildPrompt(methodName, className, code);
+
+        let result = "Modelo no válido";
+        try {
+          if (model === "gemini") {
+            result = await generateWithGemini(prompt);
+          } else if (model === "chatgpt") {
+            result = await generateWithChatGPT(prompt, subModel || "gpt-4o-mini");
+          } else if (model === "deepseek") {
+            result = await generateWithDeepSeek(prompt);
+          } else if (model === "openrouter") {
+            if (!subModel) {
+              vscode.window.showErrorMessage("Debes indicar un submodelo de OpenRouter.");
+              return;
+            }
+            result = await generateWithOpenRouter(prompt, subModel);
+          }
+
+          if (result && !result.startsWith("Modelo no válido") && !result.toLowerCase().includes("error")) {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (workspaceFolders && workspaceFolders.length > 0) {
+              const workspaceRoot = workspaceFolders[0].uri.fsPath;
+              saveUnityTest(workspaceRoot, result, className, methodName, model);
+            }
+          }
+
+          panel.webview.postMessage({ command: "showResult", result });
+        } catch (err: any) {
+          vscode.window.showErrorMessage("Error al generar: " + err.message);
+        }
+        break;
+      }
+
       case 'generateTest': {
         const { className, methodName } = await collectClassAndMethod(panel);
         const prompt = buildPrompt(methodName, className, code);
@@ -113,7 +148,7 @@ export async function createWebviewPanel(context: vscode.ExtensionContext, code:
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (workspaceFolders && workspaceFolders.length > 0) {
           const workspaceRoot = workspaceFolders[0].uri.fsPath;
-          saveUnityTest(workspaceRoot, result, className, message.model);
+          saveUnityTest(workspaceRoot, result, className, message.model, methodName);
         }
         panel.webview.postMessage({ command: 'showResult', result });
         break;

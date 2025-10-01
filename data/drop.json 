@@ -1,0 +1,6 @@
+{
+  "className": "Utilities",
+  "methodName": "CheckHorizontal1",
+  "model": "openrouter", 
+  "subModel": "deepseek/deepseek-chat-v3.1:free"
+}

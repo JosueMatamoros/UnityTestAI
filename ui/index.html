@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
 
-     <!-- CSS principal de la UI (inyectado por extension.ts) -->
+    <!-- CSS principal de la UI (inyectado por extension.ts) -->
     <link rel="stylesheet" href="@@styleUri" />
     <!-- Highlight.js CSS -->
     <link
@@ -69,6 +69,13 @@
         Todo listo. Puedes generar el prompt.
       </div>
 
+      <div class="config-loader">
+        <button id="loadJsonBtn" class="json-btn">
+          Cargar configuración JSON
+        </button>
+        <input type="file" id="jsonFileInput" accept=".json" />
+      </div>
+
       <!-- ================= Sección de acciones ================= -->
       <div class="actions">
         <div class="input-group" id="stepInputGroup">
@@ -84,7 +91,7 @@
         </div>
 
         <!-- Menú de selección de modelo -->
-         <div class="select-group" id="modelMenuContainer"></div>
+        <div class="select-group" id="modelMenuContainer"></div>
         <button id="generateBtn">
           <span class="icon">➤</span>
         </button>

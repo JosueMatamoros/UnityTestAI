@@ -8,9 +8,16 @@ import * as path from "path";
  * @param workspaceRoot Ruta raíz del proyecto Unity (donde está Assets/)
  * @param code Código C# generado por el LLM
  * @param className Nombre de la clase original que se está probando
- * @param model Nombre del modelo usado (ej. ChatGPT, DeepSeek)
+ * @param methodName Nombre del método original que se está probando
+ * @param model Nombre del modelo usado (ej. ChatGPT, DeepSeek, etc.)
  */
-export function saveUnityTest(workspaceRoot: string, code: string, className: string, model: string) {
+export function saveUnityTest(
+  workspaceRoot: string,
+  code: string,
+  className: string,
+  methodName: string,
+  model: string
+) {
   try {
     const unityTestsPath = path.join(workspaceRoot, "Tests");
 
@@ -26,20 +33,22 @@ export function saveUnityTest(workspaceRoot: string, code: string, className: st
       vscode.window.showErrorMessage("No se encontró un archivo .asmdef en Assets/Tests/. Unity no reconocerá los tests.");
       return;
     }
-    // Limpiar etiquetas de markdown 
+
+    // Limpiar etiquetas de markdown
     let cleanCode = code.replace(/```(csharp|cs)?/gi, "").trim();
 
-    // Nombre del archivo 
-    const safeClassName = `UTIA_${model}_${className}`;
+    // Nombre seguro de la clase y archivo
+    const safeClassName = `UTIA_${model}_${className}_${methodName}`;
     const filePath = path.join(unityTestsPath, `${safeClassName}.cs`);
-    // Reemplazar el nombre de la clase
+
+    // Reemplazar el nombre de la clase dentro del código
     cleanCode = cleanCode.replace(/public\s+class\s+\w+/, `public class ${safeClassName}`);
-    
+
     // Guardar archivo
     fs.writeFileSync(filePath, cleanCode, "utf8");
 
     vscode.window.showInformationMessage(`Test guardado en: ${filePath}`);
   } catch (err: any) {
-    vscode.window.showErrorMessage(` Error al guardar el test: ${err.message}`);
+    vscode.window.showErrorMessage(`Error al guardar el test: ${err.message}`);
   }
 }
