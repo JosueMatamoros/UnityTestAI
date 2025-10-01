@@ -1,15 +1,22 @@
+import { showLoading, switchToChat } from "./domUtils";
+
 export function initJsonLoader() {
   const browseBtn = document.getElementById("loadJsonBtn");
   const fileInput = document.getElementById("jsonFileInput");
+  const resultCard = document.getElementById("resultCard");
+  const typingIndicator = document.getElementById("typingIndicator");
+  const resultContainer = document.getElementById("resultContainer");
+  const stepper = document.getElementById("stepper");
+  const jsonContainer = document.getElementById("configLoader");
+  const actionsContainer = document.getElementById("actions");
+  const chatActionsContainer = document.getElementById("chatActions");
 
   if (!browseBtn || !fileInput) return;
 
-  // Al hacer click en el botón, disparamos el input
   browseBtn.addEventListener("click", () => {
     fileInput.click();
   });
 
-  // Cuando seleccionan un archivo
   fileInput.addEventListener("change", async () => {
     const file = fileInput.files[0];
     if (!file) return;
@@ -25,7 +32,10 @@ export function initJsonLoader() {
         throw new Error("El modelo 'openrouter' requiere subModel.");
       }
 
-      // Usa window.vscode porque el acquireVsCodeApi() ya está en main.js
+      // Mostrar UI de resultado y spinner
+      showLoading(resultCard, typingIndicator, resultContainer);
+      switchToChat(stepper, jsonContainer, actionsContainer, chatActionsContainer);
+
       window.vscode.postMessage({
         command: "generateFromConfig",
         className: config.className,

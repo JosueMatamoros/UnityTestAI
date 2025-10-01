@@ -69,7 +69,7 @@
         Todo listo. Puedes generar el prompt.
       </div>
 
-      <div class="config-loader">
+      <div class="config-loader" id="configLoader">
         <button id="loadJsonBtn" class="json-btn">
           Cargar configuración JSON
         </button>
@@ -77,7 +77,7 @@
       </div>
 
       <!-- ================= Sección de acciones ================= -->
-      <div class="actions">
+      <div class="actions form-actions" id="actions">
         <div class="input-group" id="stepInputGroup">
           <label class="lbl" id="stepLabel" for="stepInput"
             >Nombre de la clase</label
@@ -93,6 +93,22 @@
         <!-- Menú de selección de modelo -->
         <div class="select-group" id="modelMenuContainer"></div>
         <button id="generateBtn">
+          <span class="icon">➤</span>
+        </button>
+      </div>
+
+      <!-- ================= Sección de chat ================= -->
+      <div class="chat-actions form-actions" id="chatActions" style="display: none">
+        <div class="input-group">
+          <label class="lbl" for="chatInput">Escribe tu consulta</label>
+          <input
+            id="chatInput"
+            type="text"
+            placeholder="Escribe tu mensaje..."
+            autocomplete="off"
+          />
+        </div>
+        <button id="chatSendBtn">
           <span class="icon">➤</span>
         </button>
       </div>

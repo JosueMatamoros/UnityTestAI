@@ -57,7 +57,8 @@
 #modelSelect:focus { background: #4a4a4a; box-shadow: 0 0 0 2px rgba(11,122,204,0.35); }
 
 /* ========================== Generate button ========================== */
-#generateBtn {
+#generateBtn,
+#chatSendBtn {
   background: #007acc;
   border: none;
   border-radius: 50%;
@@ -66,9 +67,12 @@
   cursor: pointer;
   transition: background 0.2s ease-in-out, transform 0.1s ease-in-out;
 }
-#generateBtn:hover { background: #005f99; }
-#generateBtn:active { transform: scale(0.95); }
-#generateBtn .icon { color: #fff; font-size: 16px; }
+#generateBtn:hover ,
+#chatSendBtn:hover { background: #005f99; }
+#generateBtn:active,
+#chatSendBtn:active { transform: scale(0.95); }
+#generateBtn .icon,
+#chatSendBtn .icon { color: #fff; font-size: 16px; }
 
 /* ========================== Copy button ========================== */
 #copyBtn {
