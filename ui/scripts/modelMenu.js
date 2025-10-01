@@ -8,6 +8,10 @@ export function getSelectedModel() {
 export function setModels(models, container, triggerId, vscode) {
   container.innerHTML = "";
 
+  const otherModels = models.filter(m => m.id !== "openrouter");
+  const openRouterModels = models.filter(m => m.id === "openrouter");
+  const orderedModels = [...otherModels, ...openRouterModels];
+
   const dropdown = document.createElement("div");
   dropdown.className = "dropdown";
 
@@ -19,7 +23,7 @@ export function setModels(models, container, triggerId, vscode) {
   const dropdownContent = document.createElement("div");
   dropdownContent.className = "dropdown-content";
 
-  models.forEach((m) => {
+  orderedModels.forEach((m, index) => {
     if (m.id === "openrouter") {
       const submenu = document.createElement("div");
       submenu.className = "submenu";
@@ -45,6 +49,12 @@ export function setModels(models, container, triggerId, vscode) {
         trigger.textContent = m.name;
       });
       dropdownContent.appendChild(item);
+
+      if (index === 0) {
+        selectedModel = m.id;
+        selectedSubModel = null;
+        trigger.textContent = m.name;
+      }
     }
   });
 
@@ -73,7 +83,7 @@ export function setSubModels(subModels, submenuContent, triggerId, vscode) {
 
     submenuContent.appendChild(subItem);
 
-    if (i === 0) {
+    if (i === 0 && selectedModel === null) {
       selectedModel = "openrouter";
       selectedSubModel = m.model;
       document.getElementById(triggerId).textContent = m.label;
