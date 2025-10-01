@@ -8,6 +8,48 @@ import { checkSymbols } from '../utils/codeValidation';
 import { loadOpenRouterModels } from '../utils/modelLoader';
 import { saveUnityTest } from '../utils/testSaver';
 
+async function handleGenerate(
+  className: string,
+  methodName: string,
+  model: string,
+  subModel: string | null,
+  code: string,
+  panel: vscode.WebviewPanel
+) {
+  const prompt = buildPrompt(methodName, className, code);
+  let result = "Modelo no válido";
+
+  try {
+    if (model === "gemini") {
+      result = await generateWithGemini(prompt);
+    } else if (model === "chatgpt") {
+      result = await generateWithChatGPT(prompt, subModel || "gpt-4o-mini");
+    } else if (model === "deepseek") {
+      result = await generateWithDeepSeek(prompt);
+    } else if (model === "openrouter") {
+      if (!subModel) {
+        vscode.window.showErrorMessage("Debes indicar un submodelo de OpenRouter.");
+        return;
+      }
+      result = await generateWithOpenRouter(prompt, subModel);
+    }
+
+    // Solo guardar si parece válido
+    if (result && !result.startsWith("Modelo no válido") && !result.toLowerCase().includes("error")) {
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      if (workspaceFolders && workspaceFolders.length > 0) {
+        const workspaceRoot = workspaceFolders[0].uri.fsPath;
+        saveUnityTest(workspaceRoot, result, className, methodName, model);
+      }
+    }
+
+    panel.webview.postMessage({ command: "showResult", result });
+  } catch (err: any) {
+    vscode.window.showErrorMessage("Error al generar: " + err.message);
+  }
+}
+
+
 export async function createWebviewPanel(context: vscode.ExtensionContext, code: string) {
   const panel = vscode.window.createWebviewPanel(
     'unityTestIAView',
@@ -94,63 +136,13 @@ export async function createWebviewPanel(context: vscode.ExtensionContext, code:
 
       case "generateFromConfig": {
         const { className, methodName, model, subModel } = message;
-        const prompt = buildPrompt(methodName, className, code);
-
-        let result = "Modelo no válido";
-        try {
-          if (model === "gemini") {
-            result = await generateWithGemini(prompt);
-          } else if (model === "chatgpt") {
-            result = await generateWithChatGPT(prompt, subModel || "gpt-4o-mini");
-          } else if (model === "deepseek") {
-            result = await generateWithDeepSeek(prompt);
-          } else if (model === "openrouter") {
-            if (!subModel) {
-              vscode.window.showErrorMessage("Debes indicar un submodelo de OpenRouter.");
-              return;
-            }
-            result = await generateWithOpenRouter(prompt, subModel);
-          }
-
-          if (result && !result.startsWith("Modelo no válido") && !result.toLowerCase().includes("error")) {
-            const workspaceFolders = vscode.workspace.workspaceFolders;
-            if (workspaceFolders && workspaceFolders.length > 0) {
-              const workspaceRoot = workspaceFolders[0].uri.fsPath;
-              saveUnityTest(workspaceRoot, result, className, methodName, model);
-            }
-          }
-
-          panel.webview.postMessage({ command: "showResult", result });
-        } catch (err: any) {
-          vscode.window.showErrorMessage("Error al generar: " + err.message);
-        }
+        await handleGenerate(className, methodName, model, subModel, code, panel);
         break;
       }
 
       case 'generateTest': {
         const { className, methodName } = await collectClassAndMethod(panel);
-        const prompt = buildPrompt(methodName, className, code);
-
-        let result = "Modelo no válido";
-        if (message.model === "gemini") {
-          result = await generateWithGemini(prompt);
-        } else if (message.model === "chatgpt") {
-          result = await generateWithChatGPT(prompt, message.subModel || "gpt-4o-mini");
-        } else if (message.model === "deepseek") {
-          result = await generateWithDeepSeek(prompt);
-        } else if (message.model === "openrouter") {
-          if (!message.subModel) {
-            vscode.window.showErrorMessage("Debes seleccionar un submodelo de OpenRouter.");
-            return;
-          }
-          result = await generateWithOpenRouter(prompt, message.subModel);
-        }
-        const workspaceFolders = vscode.workspace.workspaceFolders;
-        if (workspaceFolders && workspaceFolders.length > 0) {
-          const workspaceRoot = workspaceFolders[0].uri.fsPath;
-          saveUnityTest(workspaceRoot, result, className, message.model, methodName);
-        }
-        panel.webview.postMessage({ command: 'showResult', result });
+        await handleGenerate(className, methodName, message.model, message.subModel, code, panel);
         break;
       }
     }
