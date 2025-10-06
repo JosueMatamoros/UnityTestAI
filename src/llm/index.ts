@@ -1,4 +1,4 @@
-export { generateWithGemini } from './gemini';
+export { generateWithGemini, generateWithGeminiChat } from './gemini';
 export { generateWithOpenRouter } from './openrouter';
 export { generateWithChatGPT } from "./chatgpt";
 export { generateWithDeepSeek } from "./deepseek";

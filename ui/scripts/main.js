@@ -1,4 +1,4 @@
-import { toggleElement } from "./domUtils.js";
+import { toggleElement, showLoading, switchToChat } from "./domUtils.js";
 import { renderResult } from "./resultRenderer.js";
 import { getStepperState, setStepperState, applyStepUI } from "./stepper.js";
 import { setModels, setSubModels, getSelectedModel } from "./modelMenu.js";
@@ -22,6 +22,8 @@ const stepperBox = document.getElementById("stepper");
 const stepLabel = document.getElementById("stepLabel");
 const stepInput = document.getElementById("stepInput");
 const readyBadge = document.getElementById("readyBadge");
+const chatInput = document.getElementById("chatInput");
+const chatSendBtn = document.getElementById("chatSendBtn");
 
 hljs.highlightAll();
 initJsonLoader();
@@ -32,7 +34,14 @@ window.addEventListener("DOMContentLoaded", () => {
 });
 
 // Inicializa stepper
-applyStepUI(0, { currentStep, stepperFill, stepperBox, readyBadge, stepLabel, stepInput });
+applyStepUI(0, {
+  currentStep,
+  stepperFill,
+  stepperBox,
+  readyBadge,
+  stepLabel,
+  stepInput,
+});
 setStepperState(0, "", "");
 
 // Avance con Enter
@@ -49,7 +58,14 @@ stepInput.addEventListener("keydown", (e) => {
 
   if (step === 0) {
     setStepperState(1, val, undefined);
-    applyStepUI(1, { currentStep, stepperFill, stepperBox, readyBadge, stepLabel, stepInput });
+    applyStepUI(1, {
+      currentStep,
+      stepperFill,
+      stepperBox,
+      readyBadge,
+      stepLabel,
+      stepInput,
+    });
   } else if (step === 1) {
     setStepperState(1, undefined, val);
     const { methodNameVal } = getStepperState();
@@ -90,21 +106,46 @@ window.addEventListener("message", (event) => {
   if (message.command === "showResult") {
     typingIndicator.style.display = "none";
     renderResult(message.result, resultContainer, copyBtn);
+
+    // === Mostrar chat usando switchToChat ===
+    const stepper = document.getElementById("stepper");
+    const jsonContainer = document.getElementById("configLoader");
+    const actionsContainer = document.getElementById("actions");
+    const chatActionsContainer = document.getElementById("chatActions");
+
+    switchToChat(
+      stepper,
+      jsonContainer,
+      actionsContainer,
+      chatActionsContainer
+    );
   }
 
   if (message.command === "setModels") {
-    setModels(message.models, document.getElementById("modelMenuContainer"), "modelBtn", vscode);
+    setModels(
+      message.models,
+      document.getElementById("modelMenuContainer"),
+      "modelBtn",
+      vscode
+    );
   }
 
   if (message.command === "setSubModels") {
-    setSubModels(message.subModels, document.getElementById("openRouterSubmenu"), "modelBtn", vscode);
+    setSubModels(
+      message.subModels,
+      document.getElementById("openRouterSubmenu"),
+      "modelBtn",
+      vscode
+    );
   }
 
   if (message.command === "requestInputs") {
     const pending = stepInput.value.trim();
     const state = getStepperState();
-    if (state.step === 0 && pending) setStepperState(0, pending, state.methodNameVal);
-    if (state.step === 1 && pending) setStepperState(1, state.classNameVal, pending);
+    if (state.step === 0 && pending)
+      setStepperState(0, pending, state.methodNameVal);
+    if (state.step === 1 && pending)
+      setStepperState(1, state.classNameVal, pending);
 
     const { classNameVal, methodNameVal } = getStepperState();
     const hasClass = (classNameVal || "").trim().length > 0;
@@ -119,7 +160,14 @@ window.addEventListener("message", (event) => {
     }
 
     setStepperState(2, classNameVal, methodNameVal);
-    applyStepUI(2, { currentStep, stepperFill, stepperBox, readyBadge, stepLabel, stepInput });
+    applyStepUI(2, {
+      currentStep,
+      stepperFill,
+      stepperBox,
+      readyBadge,
+      stepLabel,
+      stepInput,
+    });
 
     vscode.postMessage({
       command: "inputsProvided",
@@ -130,14 +178,33 @@ window.addEventListener("message", (event) => {
 
   if (message.command === "resetInputs") {
     setStepperState(0, "", "");
-    applyStepUI(0, { currentStep, stepperFill, stepperBox, readyBadge, stepLabel, stepInput });
+    applyStepUI(0, {
+      currentStep,
+      stepperFill,
+      stepperBox,
+      readyBadge,
+      stepLabel,
+      stepInput,
+    });
     typingIndicator.style.display = "none";
     resultCard.style.display = "none";
   }
 
+  if (message.command === "chatResponse") {
+    typingIndicator.style.display = "none";
+    appendChatMessage("assistant", message.text);
+  }
+
   if (message.command === "goToStep2") {
     setStepperState(2, undefined, undefined);
-    applyStepUI(2, { currentStep, stepperFill, stepperBox, readyBadge, stepLabel, stepInput });
+    applyStepUI(2, {
+      currentStep,
+      stepperFill,
+      stepperBox,
+      readyBadge,
+      stepLabel,
+      stepInput,
+    });
 
     resultCard.style.display = "block";
     typingIndicator.style.display = "flex";
@@ -151,3 +218,43 @@ window.addEventListener("message", (event) => {
     });
   }
 });
+
+function appendChatMessage(role, text) {
+  const msg = document.createElement("pre");
+  msg.className = role === "user" ? "chat-user" : "chat-assistant";
+  msg.style.whiteSpace = "pre-wrap";
+  msg.style.marginTop = "10px";
+  msg.style.padding = "8px";
+  msg.style.borderRadius = "6px";
+  msg.style.background =
+    role === "user"
+      ? "var(--vscode-editorHoverWidget-background, #1e1e1e)"
+      : "var(--vscode-editor-background, #252526)";
+  msg.textContent = (role === "user" ? "Tú: " : "Modelo: ") + text;
+  resultContainer.appendChild(msg);
+  resultContainer.scrollTop = resultContainer.scrollHeight;
+}
+
+if (chatInput && chatSendBtn) {
+  chatSendBtn.addEventListener("click", () => {
+    const text = chatInput.value.trim();
+    if (!text) return;
+    chatInput.value = "";
+
+    appendChatMessage("user", text);
+
+    vscode.postMessage({
+      command: "chatMessage",
+      text,
+    });
+
+    typingIndicator.style.display = "flex";
+  });
+
+  chatInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      chatSendBtn.click();
+    }
+  });
+}
