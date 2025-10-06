@@ -220,20 +220,81 @@ window.addEventListener("message", (event) => {
 });
 
 function appendChatMessage(role, text) {
-  const msg = document.createElement("pre");
-  msg.className = role === "user" ? "chat-user" : "chat-assistant";
-  msg.style.whiteSpace = "pre-wrap";
-  msg.style.marginTop = "10px";
-  msg.style.padding = "8px";
-  msg.style.borderRadius = "6px";
-  msg.style.background =
-    role === "user"
-      ? "var(--vscode-editorHoverWidget-background, #1e1e1e)"
-      : "var(--vscode-editor-background, #252526)";
-  msg.textContent = (role === "user" ? "Tú: " : "Modelo: ") + text;
-  resultContainer.appendChild(msg);
-  resultContainer.scrollTop = resultContainer.scrollHeight;
+  const container = resultContainer;
+
+  // Crear wrapper principal
+  const wrapper = document.createElement("div");
+  wrapper.style.marginTop = "10px";
+
+  if (role === "user") {
+    // === Mensaje del usuario ===
+    const msg = document.createElement("pre");
+    msg.className = "chat-user";
+    msg.style.whiteSpace = "pre-wrap";
+    msg.style.padding = "8px";
+    msg.style.borderRadius = "6px";
+    msg.style.background =
+      "var(--vscode-editorHoverWidget-background, #1e1e1e)";
+    msg.textContent = text;
+    wrapper.appendChild(msg);
+  } else {
+    // === Mensaje del modelo (Respuesta LLM con estilo del card) ===
+    const card = document.createElement("div");
+    card.className = "card llm-response";
+
+    const header = document.createElement("div");
+    header.className = "card-header";
+    header.innerHTML = `
+      <span>Resultado LLM</span>
+      <button class="copy-btn">Copiar</button>
+    `;
+    card.appendChild(header);
+
+    const body = document.createElement("div");
+    body.className = "llm-body";
+
+    // Aplicar highlight.js si es código
+    if (text.includes("```")) {
+      // Extraer lenguaje y código
+      const match = text.match(/```(\w+)?\n([\s\S]*?)```/);
+      if (match) {
+        const lang = match[1] || "plaintext";
+        const code = match[2];
+        const pre = document.createElement("pre");
+        const codeElem = document.createElement("code");
+        codeElem.className = `language-${lang}`;
+        codeElem.textContent = code.trim();
+        pre.appendChild(codeElem);
+        body.appendChild(pre);
+        hljs.highlightElement(codeElem);
+      } else {
+        body.textContent = text;
+      }
+    } else {
+      body.textContent = text;
+    }
+
+    card.appendChild(body);
+    wrapper.appendChild(card);
+
+    // === Botón copiar ===
+    const copyBtn = header.querySelector(".copy-btn");
+    copyBtn.addEventListener("click", () => {
+      navigator.clipboard.writeText(text);
+      copyBtn.textContent = "Copiado!";
+      setTimeout(() => (copyBtn.textContent = "Copiar"), 1500);
+    });
+  }
+
+  container.appendChild(wrapper);
+
+  // === Scroll siempre al final ===
+  container.scrollTo({
+    top: container.scrollHeight,
+    behavior: "smooth",
+  });
 }
+
 
 if (chatInput && chatSendBtn) {
   chatSendBtn.addEventListener("click", () => {

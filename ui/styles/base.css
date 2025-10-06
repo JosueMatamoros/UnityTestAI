@@ -20,3 +20,26 @@ header .logo {
   height: 40px;
   margin: 10px;
 }
+
+
+.llm-response {
+  background: var(--vscode-editor-background, #252526);
+  border: 1px solid var(--vscode-panel-border, #333);
+  border-radius: 8px;
+  padding: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.llm-response .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: bold;
+  color: var(--vscode-editor-foreground, #ccc);
+}
+
+.llm-body pre {
+  background: transparent !important;
+  margin: 0;
+  padding: 0;
+}
