@@ -1,0 +1,93 @@
+/* ========================== Chat Container ========================== */
+#chatContainer {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin-top: 10px;
+}
+
+/* Mensajes del usuario */
+.chat-user {
+  background: #1e1e1e;
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin: 8px 10px;
+  align-self: flex-end;
+  max-width: 85%;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+/* Respuestas del modelo */
+.llm-response {
+  background: #2d2d30;
+  border-radius: 10px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.4);
+  margin: 10px;
+  padding: 12px;
+  width: calc(100% - 20px);
+  box-sizing: border-box;
+}
+
+.llm-response .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  color: #ffffff;
+}
+
+.llm-response .copy-btn {
+  background: #007acc;
+  color: #fff;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.llm-response .copy-btn:hover {
+  background: #005f99;
+}
+
+.llm-body {
+  background: #1e1e1e;
+  border-radius: 6px;
+  padding: 12px;
+  overflow-x: auto;
+}
+
+
+
+/* ========================== Indicador "Analizando" ========================== */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  color: #ccc;
+  font-size: 13px;
+  margin-left: 10px;
+}
+
+.typing-indicator .dot {
+  width: 6px;
+  height: 6px;
+  background: #ccc;
+  border-radius: 50%;
+  animation: blink 1.4s infinite both;
+}
+
+.typing-indicator .dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.typing-indicator .dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes blink {
+  0%, 80%, 100% { opacity: 0; }
+  40% { opacity: 1; }
+}

@@ -220,27 +220,35 @@ window.addEventListener("message", (event) => {
 });
 
 function appendChatMessage(role, text) {
-  const container = resultContainer;
-
-  // Crear wrapper principal
+  const container = document.getElementById("chatContainer");
   const wrapper = document.createElement("div");
   wrapper.style.marginTop = "10px";
 
   if (role === "user") {
-    // === Mensaje del usuario ===
     const msg = document.createElement("pre");
     msg.className = "chat-user";
-    msg.style.whiteSpace = "pre-wrap";
-    msg.style.padding = "8px";
-    msg.style.borderRadius = "6px";
-    msg.style.background =
-      "var(--vscode-editorHoverWidget-background, #1e1e1e)";
     msg.textContent = text;
     wrapper.appendChild(msg);
-  } else {
-    // === Mensaje del modelo (Respuesta LLM con estilo del card) ===
+
+    // === Agregar indicador "Analizando" justo debajo del mensaje del usuario ===
+    const typing = document.createElement("div");
+    typing.className = "typing-indicator";
+    typing.innerHTML = `
+      <span>Analizando</span>
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    `;
+    wrapper.appendChild(typing);
+  } 
+  else if (role === "assistant") {
+    // === Remover el último indicador de "Analizando" ===
+    const lastTyping = container.querySelector(".typing-indicator");
+    if (lastTyping) lastTyping.remove();
+
+    // === Renderizar bloque del modelo ===
     const card = document.createElement("div");
-    card.className = "card llm-response";
+    card.className = "llm-response";
 
     const header = document.createElement("div");
     header.className = "card-header";
@@ -253,9 +261,7 @@ function appendChatMessage(role, text) {
     const body = document.createElement("div");
     body.className = "llm-body";
 
-    // Aplicar highlight.js si es código
     if (text.includes("```")) {
-      // Extraer lenguaje y código
       const match = text.match(/```(\w+)?\n([\s\S]*?)```/);
       if (match) {
         const lang = match[1] || "plaintext";
@@ -277,7 +283,7 @@ function appendChatMessage(role, text) {
     card.appendChild(body);
     wrapper.appendChild(card);
 
-    // === Botón copiar ===
+    // Botón copiar
     const copyBtn = header.querySelector(".copy-btn");
     copyBtn.addEventListener("click", () => {
       navigator.clipboard.writeText(text);
@@ -287,14 +293,8 @@ function appendChatMessage(role, text) {
   }
 
   container.appendChild(wrapper);
-
-  // === Scroll siempre al final ===
-  container.scrollTo({
-    top: container.scrollHeight,
-    behavior: "smooth",
-  });
+  container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
 }
-
 
 if (chatInput && chatSendBtn) {
   chatSendBtn.addEventListener("click", () => {
