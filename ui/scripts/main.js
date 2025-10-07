@@ -1,3 +1,5 @@
+// ./main.js
+
 import { toggleElement } from "./domUtils.js";
 import { renderResult } from "./managers/resultRendererManager.js";
 import { getStepperState, setStepperState, applyStepUI } from "./stepper.js";
