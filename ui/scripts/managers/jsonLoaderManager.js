@@ -1,4 +1,4 @@
-import { showLoading, switchToChat } from "./domUtils";
+import { showLoading, switchToChat } from "../domUtils";
 
 export function initJsonLoader() {
   const browseBtn = document.getElementById("loadJsonBtn");

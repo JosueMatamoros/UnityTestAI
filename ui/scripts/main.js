@@ -1,53 +1,70 @@
-import { toggleElement, showLoading, switchToChat } from "./domUtils.js";
-import { renderResult } from "./resultRenderer.js";
+import { toggleElement } from "./domUtils.js";
+import { renderResult } from "./managers/resultRendererManager.js";
 import { getStepperState, setStepperState, applyStepUI } from "./stepper.js";
 import { setModels, setSubModels, getSelectedModel } from "./modelMenu.js";
-import { initJsonLoader } from "./jsonLoader.js";
+import { initJsonLoader } from "./managers/jsonLoaderManager.js";
+import { showChatUI, showLoadingUI, hideLoadingUI, resetUI } from "./managers/uiManager.js";
+import { initChat, appendChatMessage } from "./managers/chatManager.js";
 import "../styles/main.css";
 
+/* ============================
+   Inicialización del entorno
+============================ */
+
+// Instancia del API de VS Code para comunicación con la extensión
 const vscode = acquireVsCodeApi();
 window.vscode = vscode;
 
-// DOM refs
-const toggleBtn = document.getElementById("toggleBtn");
-const codeContainer = document.getElementById("codeContainer");
-const generateBtn = document.getElementById("generateBtn");
-const resultCard = document.getElementById("resultCard");
-const resultContainer = document.getElementById("resultContainer");
-const typingIndicator = document.getElementById("typingIndicator");
-const copyBtn = document.getElementById("copyBtn");
-const currentStep = document.getElementById("currentStep");
-const stepperFill = document.getElementById("stepperFill");
-const stepperBox = document.getElementById("stepper");
-const stepLabel = document.getElementById("stepLabel");
-const stepInput = document.getElementById("stepInput");
-const readyBadge = document.getElementById("readyBadge");
-const chatInput = document.getElementById("chatInput");
-const chatSendBtn = document.getElementById("chatSendBtn");
+/* ============================
+   Referencias DOM principales
+============================ */
 
+const toggleBtn = document.getElementById("toggleBtn");             // Botón para mostrar/ocultar bloque de código
+const codeContainer = document.getElementById("codeContainer");     // Contenedor del código fuente (C#)
+const generateBtn = document.getElementById("generateBtn");         // Botón para generar las pruebas
+const resultContainer = document.getElementById("resultContainer"); // Contenedor del resultado del LLM
+const copyBtn = document.getElementById("copyBtn");                 // Botón para copiar el resultado del LLM
+const currentStep = document.getElementById("currentStep");         // Texto del paso actual (1 de 2)
+const stepperFill = document.getElementById("stepperFill");         // Barra de progreso del stepper
+const stepperBox = document.getElementById("stepper");              // Contenedor completo del stepper
+const stepLabel = document.getElementById("stepLabel");             // Etiqueta descriptiva del paso actual
+const stepInput = document.getElementById("stepInput");             // Input donde se ingresa el valor del paso actual
+const readyBadge = document.getElementById("readyBadge");           // Insignia que indica que los pasos están completos
+const chatInput = document.getElementById("chatInput");             // Input del chat con el LLM
+const chatSendBtn = document.getElementById("chatSendBtn");         // Botón para enviar mensajes al LLM
+
+/* ============================
+   Inicialización de módulos
+============================ */
+
+// Inicializa resaltado de sintaxis en bloques <pre><code>
 hljs.highlightAll();
+
+// Permite cargar una configuración de prueba desde un archivo JSON
 initJsonLoader();
 
-// Avísale al backend que el DOM está listo
+// Configura el sistema de chat (entrada y envío)
+initChat(vscode, chatInput, chatSendBtn);
+
+// Notifica al backend cuando el DOM está listo
 window.addEventListener("DOMContentLoaded", () => {
   vscode.postMessage({ command: "webviewReady" });
 });
 
-// Inicializa stepper
-applyStepUI(0, {
-  currentStep,
-  stepperFill,
-  stepperBox,
-  readyBadge,
-  stepLabel,
-  stepInput,
-});
+/* ============================
+   Configuración del stepper
+============================ */
+
+// Inicializa el stepper en el paso 0
+applyStepUI(0, { currentStep, stepperFill, stepperBox, readyBadge, stepLabel, stepInput });
 setStepperState(0, "", "");
 
-// Avance con Enter
+// Permite avanzar entre pasos presionando Enter
 stepInput.addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
   const val = stepInput.value.trim();
+
+  // Validar que el campo no esté vacío
   if (!val) {
     stepInput.classList.add("error");
     setTimeout(() => stepInput.classList.remove("error"), 900);
@@ -56,19 +73,17 @@ stepInput.addEventListener("keydown", (e) => {
 
   const { step, classNameVal } = getStepperState();
 
+  // Paso 0: solicitar nombre de la clase
   if (step === 0) {
     setStepperState(1, val, undefined);
-    applyStepUI(1, {
-      currentStep,
-      stepperFill,
-      stepperBox,
-      readyBadge,
-      stepLabel,
-      stepInput,
-    });
-  } else if (step === 1) {
+    applyStepUI(1, { currentStep, stepperFill, stepperBox, readyBadge, stepLabel, stepInput });
+  }
+  // Paso 1: solicitar nombre del método y validar entradas
+  else if (step === 1) {
     setStepperState(1, undefined, val);
     const { methodNameVal } = getStepperState();
+
+    // Enviar los datos (clase y método) al backend para validación
     vscode.postMessage({
       command: "validateInputs",
       className: classNameVal.trim(),
@@ -77,7 +92,11 @@ stepInput.addEventListener("keydown", (e) => {
   }
 });
 
-// Toggle código usando domUtils
+/* ============================
+   Interacción con la UI
+============================ */
+
+// Alternar visibilidad del bloque de código fuente (Asset C#)
 toggleBtn.addEventListener("click", () => {
   toggleElement(codeContainer, "collapsed");
   toggleBtn.textContent = codeContainer.classList.contains("collapsed")
@@ -85,13 +104,11 @@ toggleBtn.addEventListener("click", () => {
     : "Ocultar código";
 });
 
-// Generar pruebas
+// Generar pruebas 
 generateBtn.addEventListener("click", () => {
-  resultCard.style.display = "block";
-  typingIndicator.style.display = "flex";
-  resultContainer.innerText = "";
-
+  showLoadingUI(); 
   const { selectedModel, selectedSubModel } = getSelectedModel();
+
   vscode.postMessage({
     command: "generateTest",
     model: selectedModel,
@@ -99,223 +116,112 @@ generateBtn.addEventListener("click", () => {
   });
 });
 
-// Mensajes del backend
+/* ============================
+   Comunicación con el backend
+============================ */
+
 window.addEventListener("message", (event) => {
   const message = event.data;
 
-  if (message.command === "showResult") {
-    typingIndicator.style.display = "none";
-    renderResult(message.result, resultContainer, copyBtn);
+  switch (message.command) {
+    /* ---------------------------------------- 
+      Mostrar la respuesta generada por el LLM 
+    ---------------------------------------- */
+    case "showResult": 
+      hideLoadingUI();
+      renderResult(message.result, resultContainer, copyBtn);
+      showChatUI(); 
+      break;
+    
+    /* ---------------------------------------- 
+      Poblar el menú de modelos LLM disponibles 
+    ---------------------------------------- */
+    case "setModels": 
+      setModels(
+        message.models,
+        document.getElementById("modelMenuContainer"),
+        "modelBtn",
+        vscode
+      );
+      break;
+    
+    /* ---------------------------------------- 
+      Poblar submodelos (OpenRouter) 
+    ---------------------------------------- */
+    case "setSubModels": 
+      setSubModels(
+        message.subModels,
+        document.getElementById("openRouterSubmenu"),
+        "modelBtn",
+        vscode
+      );
+      break;
+    
+    /* ---------------------------------------- 
+      Solicitar entradas de clase y método 
+    ---------------------------------------- */
+    case "requestInputs": { 
+      const pending = stepInput.value.trim();
+      const state = getStepperState();
 
-    // === Mostrar chat usando switchToChat ===
-    const stepper = document.getElementById("stepper");
-    const jsonContainer = document.getElementById("configLoader");
-    const actionsContainer = document.getElementById("actions");
-    const chatActionsContainer = document.getElementById("chatActions");
+      if (state.step === 0 && pending) setStepperState(0, pending, state.methodNameVal);
+      if (state.step === 1 && pending) setStepperState(1, state.classNameVal, pending);
 
-    switchToChat(
-      stepper,
-      jsonContainer,
-      actionsContainer,
-      chatActionsContainer
-    );
-  }
+      const { classNameVal, methodNameVal } = getStepperState();
+      const hasClass = (classNameVal || "").trim().length > 0;
+      const hasMethod = (methodNameVal || "").trim().length > 0;
 
-  if (message.command === "setModels") {
-    setModels(
-      message.models,
-      document.getElementById("modelMenuContainer"),
-      "modelBtn",
-      vscode
-    );
-  }
+      // Validar que ambos valores existan antes de continuar
+      if (!hasClass || !hasMethod) {
+        stepInput.classList.add("error");
+        setTimeout(() => stepInput.classList.remove("error"), 900);
+        vscode.postMessage({ command: "inputsCancelled" });
+        hideLoadingUI();
+        return;
+      }
 
-  if (message.command === "setSubModels") {
-    setSubModels(
-      message.subModels,
-      document.getElementById("openRouterSubmenu"),
-      "modelBtn",
-      vscode
-    );
-  }
+      // Si todo está correcto, avanzar al paso 2
+      setStepperState(2, classNameVal, methodNameVal);
+      applyStepUI(2, { currentStep, stepperFill, stepperBox, readyBadge, stepLabel, stepInput });
 
-  if (message.command === "requestInputs") {
-    const pending = stepInput.value.trim();
-    const state = getStepperState();
-    if (state.step === 0 && pending)
-      setStepperState(0, pending, state.methodNameVal);
-    if (state.step === 1 && pending)
-      setStepperState(1, state.classNameVal, pending);
-
-    const { classNameVal, methodNameVal } = getStepperState();
-    const hasClass = (classNameVal || "").trim().length > 0;
-    const hasMethod = (methodNameVal || "").trim().length > 0;
-
-    if (!hasClass || !hasMethod) {
-      stepInput.classList.add("error");
-      setTimeout(() => stepInput.classList.remove("error"), 900);
-      vscode.postMessage({ command: "inputsCancelled" });
-      typingIndicator.style.display = "none";
-      return;
+      vscode.postMessage({
+        command: "inputsProvided",
+        className: classNameVal.trim(),
+        methodName: methodNameVal.trim(),
+      });
+      break;
     }
+    /* ---------------------------------------- 
+        Reiniciar los campos de entrada y UI 
+    ---------------------------------------- */
+    case "resetInputs": 
+      setStepperState(0, "", "");
+      applyStepUI(0, { currentStep, stepperFill, stepperBox, readyBadge, stepLabel, stepInput });
+      resetUI();
+      break;
 
-    setStepperState(2, classNameVal, methodNameVal);
-    applyStepUI(2, {
-      currentStep,
-      stepperFill,
-      stepperBox,
-      readyBadge,
-      stepLabel,
-      stepInput,
-    });
+    /* ---------------------------------------- 
+        Mostrar respuesta dentro del chat 
+    ---------------------------------------- */
+    case "chatResponse":
+      hideLoadingUI();
+      appendChatMessage("assistant", message.text);
+      break;
 
-    vscode.postMessage({
-      command: "inputsProvided",
-      className: classNameVal.trim(),
-      methodName: methodNameVal.trim(),
-    });
-  }
+    /* ---------------------------------------- 
+        Avanzar al paso 2 (generación del test)
+    ---------------------------------------- */
+    case "goToStep2": 
+      setStepperState(2, undefined, undefined);
+      applyStepUI(2, { currentStep, stepperFill, stepperBox, readyBadge, stepLabel, stepInput });
+      showLoadingUI();
 
-  if (message.command === "resetInputs") {
-    setStepperState(0, "", "");
-    applyStepUI(0, {
-      currentStep,
-      stepperFill,
-      stepperBox,
-      readyBadge,
-      stepLabel,
-      stepInput,
-    });
-    typingIndicator.style.display = "none";
-    resultCard.style.display = "none";
-  }
-
-  if (message.command === "chatResponse") {
-    typingIndicator.style.display = "none";
-    appendChatMessage("assistant", message.text);
-  }
-
-  if (message.command === "goToStep2") {
-    setStepperState(2, undefined, undefined);
-    applyStepUI(2, {
-      currentStep,
-      stepperFill,
-      stepperBox,
-      readyBadge,
-      stepLabel,
-      stepInput,
-    });
-
-    resultCard.style.display = "block";
-    typingIndicator.style.display = "flex";
-    resultContainer.innerText = "";
-
-    const { selectedModel, selectedSubModel } = getSelectedModel();
-    vscode.postMessage({
-      command: "generateTest",
-      model: selectedModel,
-      subModel: selectedSubModel,
-    });
+      const { selectedModel, selectedSubModel } = getSelectedModel();
+      vscode.postMessage({
+        command: "generateTest",
+        model: selectedModel,
+        subModel: selectedSubModel,
+      });
+      break;
   }
 });
-
-function appendChatMessage(role, text) {
-  const container = document.getElementById("chatContainer");
-  const wrapper = document.createElement("div");
-  wrapper.style.marginTop = "10px";
-
-  if (role === "user") {
-    const msg = document.createElement("pre");
-    msg.className = "chat-user";
-    msg.textContent = text;
-    wrapper.appendChild(msg);
-
-    // === Agregar indicador "Analizando" justo debajo del mensaje del usuario ===
-    const typing = document.createElement("div");
-    typing.className = "typing-indicator";
-    typing.innerHTML = `
-      <span>Analizando</span>
-      <div class="dot"></div>
-      <div class="dot"></div>
-      <div class="dot"></div>
-    `;
-    wrapper.appendChild(typing);
-  } 
-  else if (role === "assistant") {
-    // === Remover el último indicador de "Analizando" ===
-    const lastTyping = container.querySelector(".typing-indicator");
-    if (lastTyping) lastTyping.remove();
-
-    // === Renderizar bloque del modelo ===
-    const card = document.createElement("div");
-    card.className = "llm-response";
-
-    const header = document.createElement("div");
-    header.className = "card-header";
-    header.innerHTML = `
-      <span>Resultado LLM</span>
-      <button class="copy-btn">Copiar</button>
-    `;
-    card.appendChild(header);
-
-    const body = document.createElement("div");
-    body.className = "llm-body";
-
-    if (text.includes("```")) {
-      const match = text.match(/```(\w+)?\n([\s\S]*?)```/);
-      if (match) {
-        const lang = match[1] || "plaintext";
-        const code = match[2];
-        const pre = document.createElement("pre");
-        const codeElem = document.createElement("code");
-        codeElem.className = `language-${lang}`;
-        codeElem.textContent = code.trim();
-        pre.appendChild(codeElem);
-        body.appendChild(pre);
-        hljs.highlightElement(codeElem);
-      } else {
-        body.textContent = text;
-      }
-    } else {
-      body.textContent = text;
-    }
-
-    card.appendChild(body);
-    wrapper.appendChild(card);
-
-    // Botón copiar
-    const copyBtn = header.querySelector(".copy-btn");
-    copyBtn.addEventListener("click", () => {
-      navigator.clipboard.writeText(text);
-      copyBtn.textContent = "Copiado!";
-      setTimeout(() => (copyBtn.textContent = "Copiar"), 1500);
-    });
-  }
-
-  container.appendChild(wrapper);
-  container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
-}
-
-if (chatInput && chatSendBtn) {
-  chatSendBtn.addEventListener("click", () => {
-    const text = chatInput.value.trim();
-    if (!text) return;
-    chatInput.value = "";
-
-    appendChatMessage("user", text);
-
-    vscode.postMessage({
-      command: "chatMessage",
-      text,
-    });
-
-    typingIndicator.style.display = "flex";
-  });
-
-  chatInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      chatSendBtn.click();
-    }
-  });
-}
