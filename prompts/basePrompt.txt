@@ -61,3 +61,29 @@ Input Code:
 Instruction:
 YOU MUST IMPLEMENT ALL TESTS! I WILL NOT CODE ANYTHING! DO ALL ASSERTIONS! DO NOT ADD ANY TODO LINE. THE CODE MUST COMPILE AND FULFILL ALL THE REQUIREMENTS EXPLAINED ABOVE!
 
+---
+### Project structure
+${projectTree}
+
+---
+
+### Final Instruction
+Before generating tests, carefully review the provided project structure and input code.
+
+If you determine that additional class definitions are required to fully understand dependencies, you are **strictly forbidden** from generating any test code at this stage.  
+Respond **only** in the following format (no explanations, no code, nothing else):
+
+```
+To generate the tests successfully, I need the following class definitions:
+1. <relative path to class file>
+2. <relative path to class file>
+...
+```
+
+You must not generate any test code, partial code, comments, or explanations when returning this list.  
+Do not proceed to generate tests until these class definitions have been provided.
+
+Once all the required class definitions have been provided, and only then, proceed to generate the complete NUnit test class following all the specifications above.
+
+If no additional information is needed and all dependencies are already clear, immediately generate the full test class now.  
+Your output in that case must contain **only the final C# test code** and nothing else.

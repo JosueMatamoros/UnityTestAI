@@ -5,7 +5,12 @@ import { renderResult } from "./managers/resultRendererManager.js";
 import { getStepperState, setStepperState, applyStepUI } from "./stepper.js";
 import { setModels, setSubModels, getSelectedModel } from "./modelMenu.js";
 import { initJsonLoader } from "./managers/jsonLoaderManager.js";
-import { showChatUI, showLoadingUI, hideLoadingUI, resetUI } from "./managers/uiManager.js";
+import {
+  showChatUI,
+  showLoadingUI,
+  hideLoadingUI,
+  resetUI,
+} from "./managers/uiManager.js";
 import { initChat, appendChatMessage } from "./managers/chatManager.js";
 import "../styles/main.css";
 
@@ -21,19 +26,19 @@ window.vscode = vscode;
    Referencias DOM principales
 ============================ */
 
-const toggleBtn = document.getElementById("toggleBtn");             // Botón para mostrar/ocultar bloque de código
-const codeContainer = document.getElementById("codeContainer");     // Contenedor del código fuente (C#)
-const generateBtn = document.getElementById("generateBtn");         // Botón para generar las pruebas
+const toggleBtn = document.getElementById("toggleBtn"); // Botón para mostrar/ocultar bloque de código
+const codeContainer = document.getElementById("codeContainer"); // Contenedor del código fuente (C#)
+const generateBtn = document.getElementById("generateBtn"); // Botón para generar las pruebas
 const resultContainer = document.getElementById("resultContainer"); // Contenedor del resultado del LLM
-const copyBtn = document.getElementById("copyBtn");                 // Botón para copiar el resultado del LLM
-const currentStep = document.getElementById("currentStep");         // Texto del paso actual (1 de 2)
-const stepperFill = document.getElementById("stepperFill");         // Barra de progreso del stepper
-const stepperBox = document.getElementById("stepper");              // Contenedor completo del stepper
-const stepLabel = document.getElementById("stepLabel");             // Etiqueta descriptiva del paso actual
-const stepInput = document.getElementById("stepInput");             // Input donde se ingresa el valor del paso actual
-const readyBadge = document.getElementById("readyBadge");           // Insignia que indica que los pasos están completos
-const chatInput = document.getElementById("chatInput");             // Input del chat con el LLM
-const chatSendBtn = document.getElementById("chatSendBtn");         // Botón para enviar mensajes al LLM
+const copyBtn = document.getElementById("copyBtn"); // Botón para copiar el resultado del LLM
+const currentStep = document.getElementById("currentStep"); // Texto del paso actual (1 de 2)
+const stepperFill = document.getElementById("stepperFill"); // Barra de progreso del stepper
+const stepperBox = document.getElementById("stepper"); // Contenedor completo del stepper
+const stepLabel = document.getElementById("stepLabel"); // Etiqueta descriptiva del paso actual
+const stepInput = document.getElementById("stepInput"); // Input donde se ingresa el valor del paso actual
+const readyBadge = document.getElementById("readyBadge"); // Insignia que indica que los pasos están completos
+const chatInput = document.getElementById("chatInput"); // Input del chat con el LLM
+const chatSendBtn = document.getElementById("chatSendBtn"); // Botón para enviar mensajes al LLM
 
 /* ============================
    Inicialización de módulos
@@ -58,7 +63,14 @@ window.addEventListener("DOMContentLoaded", () => {
 ============================ */
 
 // Inicializa el stepper en el paso 0
-applyStepUI(0, { currentStep, stepperFill, stepperBox, readyBadge, stepLabel, stepInput });
+applyStepUI(0, {
+  currentStep,
+  stepperFill,
+  stepperBox,
+  readyBadge,
+  stepLabel,
+  stepInput,
+});
 setStepperState(0, "", "");
 
 // Permite avanzar entre pasos presionando Enter
@@ -78,7 +90,14 @@ stepInput.addEventListener("keydown", (e) => {
   // Paso 0: solicitar nombre de la clase
   if (step === 0) {
     setStepperState(1, val, undefined);
-    applyStepUI(1, { currentStep, stepperFill, stepperBox, readyBadge, stepLabel, stepInput });
+    applyStepUI(1, {
+      currentStep,
+      stepperFill,
+      stepperBox,
+      readyBadge,
+      stepLabel,
+      stepInput,
+    });
   }
   // Paso 1: solicitar nombre del método y validar entradas
   else if (step === 1) {
@@ -106,9 +125,9 @@ toggleBtn.addEventListener("click", () => {
     : "Ocultar código";
 });
 
-// Generar pruebas 
+// Generar pruebas
 generateBtn.addEventListener("click", () => {
-  showLoadingUI(); 
+  showLoadingUI();
   const { selectedModel, selectedSubModel } = getSelectedModel();
 
   vscode.postMessage({
@@ -129,16 +148,21 @@ window.addEventListener("message", (event) => {
     /* ---------------------------------------- 
       Mostrar la respuesta generada por el LLM 
     ---------------------------------------- */
-    case "showResult": 
+    case "showResult":
       hideLoadingUI();
       renderResult(message.result, resultContainer, copyBtn);
-      showChatUI(); 
+      showChatUI();
       break;
-    
+
+    case "showDependencyResult":
+      hideLoadingUI();
+      renderResult(message.result, resultContainer, copyBtn, true);
+      showChatUI();
+      break;
     /* ---------------------------------------- 
       Poblar el menú de modelos LLM disponibles 
     ---------------------------------------- */
-    case "setModels": 
+    case "setModels":
       setModels(
         message.models,
         document.getElementById("modelMenuContainer"),
@@ -146,11 +170,11 @@ window.addEventListener("message", (event) => {
         vscode
       );
       break;
-    
+
     /* ---------------------------------------- 
       Poblar submodelos (OpenRouter) 
     ---------------------------------------- */
-    case "setSubModels": 
+    case "setSubModels":
       setSubModels(
         message.subModels,
         document.getElementById("openRouterSubmenu"),
@@ -158,16 +182,18 @@ window.addEventListener("message", (event) => {
         vscode
       );
       break;
-    
+
     /* ---------------------------------------- 
       Solicitar entradas de clase y método 
     ---------------------------------------- */
-    case "requestInputs": { 
+    case "requestInputs": {
       const pending = stepInput.value.trim();
       const state = getStepperState();
 
-      if (state.step === 0 && pending) setStepperState(0, pending, state.methodNameVal);
-      if (state.step === 1 && pending) setStepperState(1, state.classNameVal, pending);
+      if (state.step === 0 && pending)
+        setStepperState(0, pending, state.methodNameVal);
+      if (state.step === 1 && pending)
+        setStepperState(1, state.classNameVal, pending);
 
       const { classNameVal, methodNameVal } = getStepperState();
       const hasClass = (classNameVal || "").trim().length > 0;
@@ -184,7 +210,14 @@ window.addEventListener("message", (event) => {
 
       // Si todo está correcto, avanzar al paso 2
       setStepperState(2, classNameVal, methodNameVal);
-      applyStepUI(2, { currentStep, stepperFill, stepperBox, readyBadge, stepLabel, stepInput });
+      applyStepUI(2, {
+        currentStep,
+        stepperFill,
+        stepperBox,
+        readyBadge,
+        stepLabel,
+        stepInput,
+      });
 
       vscode.postMessage({
         command: "inputsProvided",
@@ -196,9 +229,16 @@ window.addEventListener("message", (event) => {
     /* ---------------------------------------- 
         Reiniciar los campos de entrada y UI 
     ---------------------------------------- */
-    case "resetInputs": 
+    case "resetInputs":
       setStepperState(0, "", "");
-      applyStepUI(0, { currentStep, stepperFill, stepperBox, readyBadge, stepLabel, stepInput });
+      applyStepUI(0, {
+        currentStep,
+        stepperFill,
+        stepperBox,
+        readyBadge,
+        stepLabel,
+        stepInput,
+      });
       resetUI();
       break;
 
@@ -213,9 +253,16 @@ window.addEventListener("message", (event) => {
     /* ---------------------------------------- 
         Avanzar al paso 2 (generación del test)
     ---------------------------------------- */
-    case "goToStep2": 
+    case "goToStep2":
       setStepperState(2, undefined, undefined);
-      applyStepUI(2, { currentStep, stepperFill, stepperBox, readyBadge, stepLabel, stepInput });
+      applyStepUI(2, {
+        currentStep,
+        stepperFill,
+        stepperBox,
+        readyBadge,
+        stepLabel,
+        stepInput,
+      });
       showLoadingUI();
 
       const { selectedModel, selectedSubModel } = getSelectedModel();
