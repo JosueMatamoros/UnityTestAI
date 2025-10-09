@@ -4,13 +4,15 @@ import * as path from 'path';
 import { collectClassAndMethod } from '../collectInputs';
 import { buildPrompt } from '../prompts/promptBuilder';
 import { ChatSession } from '../llm/sessionManager';
-import { generateWithGemini, generateWithOpenRouter, generateWithChatGPT, generateWithDeepSeek, generateWithGeminiChat } from '../llm';
+import { generateWithOpenRouter, generateWithChatGPT, generateWithDeepSeek, generateWithGeminiChat } from '../llm';
 import { checkSymbols } from '../utils/codeValidation';
 import { loadOpenRouterModels } from '../utils/modelLoader';
 import { saveUnityTest } from '../utils/testSaver';
 import { getFilteredAssetsTree } from '../utils/getFilteredAssetsTree';
 import { handleDependencyResponse } from "../utils/dependencyPromptHandler";
 
+
+//// Optimizar esta funcion //////
 async function handleGenerate(
   className: string,
   methodName: string,
@@ -54,12 +56,10 @@ async function handleGenerate(
     panel.webview.postMessage({ command: "showResult", result });
 
     // ===  Analizar si el modelo pidió clases adicionales ===
-    const dependencyPrompt = handleDependencyResponse(result, prompt);
+    const dependencyPrompt = handleDependencyResponse(result);
 
     if (dependencyPrompt) {
       
-      
-
       // ===  Volver a consultar al modelo con el nuevo prompt ===
       let dependencyResult = "";
 
@@ -75,8 +75,6 @@ async function handleGenerate(
       } else if (model === "openrouter") {
         dependencyResult = await generateWithOpenRouter(dependencyPrompt, subModel!);
       }
-
-      
 
       // ===  Mostrar segunda respuesta en UI y guardar ===
       panel.webview.postMessage({ command: "showDependencyResult", result: dependencyResult });
@@ -106,8 +104,12 @@ async function handleGenerate(
   }
 }
 
+//// ////////////////////
 
-// Mapa global para mantener sesiones por panel (no se filtra memoria)
+
+
+
+// Mapa global para mantener sesiones por panel 
 const sessionsByPanel = new WeakMap<vscode.WebviewPanel, ChatSession>();
 
 export async function createWebviewPanel(context: vscode.ExtensionContext, code: string) {

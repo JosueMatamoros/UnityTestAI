@@ -3,40 +3,52 @@ import * as path from "path";
 import * as vscode from "vscode";
 
 /**
- * Verifica si la respuesta del LLM solicita clases adicionales y construye un nuevo prompt si es necesario.
- * @param llmResponse Respuesta completa del LLM.
- * @param basePrompt Prompt original que se usó.
- * @returns string | null Nuevo prompt con dependencias si aplica, o null si no se requieren.
+ * Analiza la respuesta de un modelo LLM para detectar solicitudes de clases adicionales
+ * necesarias para completar la generación de pruebas.  
+ * Si se encuentran dependencias, construye SOLO el bloque adicional con las definiciones
+ * de clases, sin volver a incluir el prompt original.
+ *
+ * @param {string} llmResponse - Respuesta completa recibida del modelo LLM.
+ * @returns {string|null} Texto adicional con definiciones de clases si se requieren dependencias, o `null` si no aplica.
  */
-export function handleDependencyResponse(llmResponse: string, basePrompt: string): string | null {
+export function handleDependencyResponse(llmResponse: string): string | null {
   const dependencyTrigger = "To generate the tests successfully, I need the following class definitions:";
 
-  //  Limpiar backticks y espacios
+  // Limpiar delimitadores Markdown y espacios innecesarios
   const cleanResponse = llmResponse
     .trim()
     .replace(/^```[a-z]*\s*/i, "")
     .replace(/```$/, "")
     .trim();
 
+  // Salir si la respuesta no contiene el trigger 
   if (!cleanResponse.startsWith(dependencyTrigger)) {
     return null;
   }
 
-  //  Extraer rutas Assets/...
+  // Extraer rutas que comiencen con Assets/...
   const filePaths = Array.from(cleanResponse.matchAll(/Assets\/[^\s]+/g)).map(match => match[0]);
   if (filePaths.length === 0) {
-    console.warn("⚠️ No se encontraron rutas de dependencias en la respuesta.");
+    console.warn("No se encontraron rutas de dependencias en la respuesta.");
     return null;
   }
 
-  //  Leer archivos
+  // Leer y concatenar contenido de las clases referenciadas
   const dependenciesContent = getClassContents(filePaths);
 
-  const newPrompt = `${basePrompt}\n\n---\n### Additional Class Definitions\n${dependenciesContent}\n\nEstas son las clases necesarias para realizar la prueba solicitada en la solicitud anterior. Procede a generar las pruebas ahora.`;
-
-  return newPrompt;
+  // Nuevo prompt 
+  const dependencyBlock = `### Additional Class Definitions\n${dependenciesContent}\n\nThese are the required class definitions needed to complete the requested test generation. Please continue generating the tests using this additional context.`;
+  return dependencyBlock;
 }
 
+/**
+ * Lee el contenido de las clases especificadas en las rutas dadas y concatena sus textos,
+ * incluyendo comentarios de referencia de archivo.  
+ * Solo busca dentro de la carpeta raíz del workspace actual en VS Code.
+ *
+ * @param {string[]} filePaths - Lista de rutas relativas a partir de `Assets/`.
+ * @returns {string} Contenido concatenado de las clases encontradas.
+ */
 function getClassContents(filePaths: string[]): string {
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (!workspaceFolders) return "";
@@ -45,7 +57,6 @@ function getClassContents(filePaths: string[]): string {
   let combinedContent = "";
 
   for (const file of filePaths) {
-    // Eliminar "Assets/" duplicado si existe
     const relativePath = file.replace(/^Assets[\\/]/, "");
     const absolutePath = path.join(rootPath, relativePath);
 
@@ -53,10 +64,9 @@ function getClassContents(filePaths: string[]): string {
       const content = fs.readFileSync(absolutePath, "utf8");
       combinedContent += `\n\n// File: ${file}\n${content}`;
     } else {
-      console.warn(`No se encontró el archivo: ${absolutePath}`);
+      console.warn(` No se encontró el archivo: ${absolutePath}`);
     }
   }
 
   return combinedContent;
 }
-

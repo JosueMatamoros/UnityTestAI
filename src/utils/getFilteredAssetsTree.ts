@@ -3,8 +3,9 @@ import * as path from "path";
 import * as vscode from "vscode";
 
 /**
- * Genera un árbol de archivos dentro del workspace.
- * Si el workspace ya está en la carpeta Assets, no busca otra.
+ * Genera una representación en texto del árbol de directorios dentro de la carpeta `Assets` de un proyecto Unity.
+ *
+ * @returns {string} Árbol de archivos en formato legible con indentación por niveles.
  */
 export function getFilteredAssetsTree(): string {
   const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -15,7 +16,7 @@ export function getFilteredAssetsTree(): string {
 
   const workspaceRoot = workspaceFolders[0].uri.fsPath;
 
-  // Detecta si ya estamos en Assets o si hay que entrar a ella
+  // Detectar si ya estamos dentro de Assets o si hay que entrar a ella
   const assetsDir =
     path.basename(workspaceRoot).toLowerCase() === "assets"
       ? workspaceRoot
@@ -45,6 +46,14 @@ export function getFilteredAssetsTree(): string {
   return tree.trim();
 }
 
+/**
+ * Recorre recursivamente la carpeta `Scripts` y devuelve su estructura jerárquica
+ * incluyendo subdirectorios y archivos `.cs`.
+ *
+ * @param {string} dirPath - Ruta absoluta de la carpeta actual que se está recorriendo.
+ * @param {number} depth - Nivel de indentación para formatear la salida.
+ * @returns {string} Texto con la estructura jerárquica de la carpeta.
+ */
 function getScriptsRecursive(dirPath: string, depth: number): string {
   let output = "";
   const items = fs.readdirSync(dirPath, { withFileTypes: true });
