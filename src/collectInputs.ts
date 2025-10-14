@@ -3,6 +3,20 @@ import * as vscode from 'vscode';
 
 export type NameInputs = { className: string; methodName: string };
 
+/**
+ * Solicita al usuario el nombre de una clase y un método a través de la webview asociada a un panel.
+ * Envía un mensaje a la webview para pedir los datos y espera la respuesta del usuario.
+ *
+ * @async
+ * @function collectClassAndMethod
+ * @param {vscode.WebviewPanel} panel - Panel de la extensión que contiene la webview desde donde se obtendrán los datos.
+ * @returns {Promise<NameInputs>} Promesa que se resuelve con un objeto que incluye `className` y `methodName`.
+ * @throws {Error} Lanza un error si el usuario cancela la entrada o si los valores proporcionados están vacíos.
+ *
+ * @fires requestInputs - Se envía a la webview para solicitar los valores de clase y método.
+ * @listens inputsProvided - Evento recibido cuando el usuario proporciona los valores.
+ * @listens inputsCancelled - Evento recibido cuando el usuario cancela la entrada.
+ */
 export async function collectClassAndMethod(panel: vscode.WebviewPanel): Promise<NameInputs> {
   panel.webview.postMessage({ command: 'requestInputs' });
 
