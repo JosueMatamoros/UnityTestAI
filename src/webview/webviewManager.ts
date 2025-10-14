@@ -1,3 +1,4 @@
+// src/extension.ts
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -11,8 +12,65 @@ import { saveUnityTest } from '../utils/testSaver';
 import { getFilteredAssetsTree } from '../utils/getFilteredAssetsTree';
 import { handleDependencyResponse } from "../utils/dependencyPromptHandler";
 
+// === Sesiones por panel ===
+const sessionsByPanel = new WeakMap<vscode.WebviewPanel, ChatSession>();
 
-//// Optimizar esta funcion //////
+// === Manejadores por modelo ===
+const modelHandlers: Record<string, (prompt: string, panel: vscode.WebviewPanel, subModel?: string) => Promise<string>> = {
+  gemini: async (prompt, panel) => {
+    let session = sessionsByPanel.get(panel);
+    if (!session) {
+      session = new ChatSession();
+      sessionsByPanel.set(panel, session);
+    }
+    session.addUserMessage(prompt);
+    const result = await generateWithGeminiChat(session.getMessages());
+    session.addAssistantMessage(result);
+    return result;
+  },
+  chatgpt: (prompt, _panel, subModel) => generateWithChatGPT(prompt, subModel || "gpt-4o-mini"),
+  deepseek: (prompt) => generateWithDeepSeek(prompt),
+  openrouter: (prompt, _panel, subModel) => {
+    if (!subModel) throw new Error("Debes indicar un submodelo de OpenRouter.");
+    return generateWithOpenRouter(prompt, subModel);
+  },
+};
+
+// === Guardar resultado si es válido ===
+function saveResult(result: string, className: string, methodName: string, model: string) {
+  if (result && !result.startsWith("Modelo no válido") && !result.toLowerCase().includes("error")) {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (workspaceFolders && workspaceFolders.length > 0) {
+      const workspaceRoot = workspaceFolders[0].uri.fsPath;
+      saveUnityTest(workspaceRoot, result, className, methodName, model);
+    }
+  }
+}
+
+// === Manejar dependencias ===
+async function handleDependencies(
+  model: string,
+  panel: vscode.WebviewPanel,
+  subModel: string | null,
+  result: string,
+  className: string,
+  methodName: string
+) {
+  const dependencyPrompt = handleDependencyResponse(result);
+  if (!dependencyPrompt) {
+    saveResult(result, className, methodName, model);
+    return;
+  }
+
+  const handler = modelHandlers[model];
+  if (!handler) throw new Error(`Modelo no válido: ${model}`);
+
+  const dependencyResult = await handler(dependencyPrompt, panel, subModel ?? undefined);
+  panel.webview.postMessage({ command: "showDependencyResult", result: dependencyResult });
+  saveResult(dependencyResult, className, methodName, model);
+}
+
+// === Generar código optimizado ===
 async function handleGenerate(
   className: string,
   methodName: string,
@@ -21,97 +79,25 @@ async function handleGenerate(
   code: string,
   panel: vscode.WebviewPanel
 ) {
-  const projectTree = getFilteredAssetsTree();
-  console.log("\n📁 Estructura detectada:\n" + projectTree + "\n");
-
-  const prompt = buildPrompt(methodName, className, code, projectTree);
-  let result = "Modelo no válido";
-
   try {
-    // ===  Generar con el modelo seleccionado ===
-    if (model === "gemini") {
-      let session = sessionsByPanel.get(panel);
-      if (!session) {
-        session = new ChatSession();
-        sessionsByPanel.set(panel, session);
-      }
+    const projectTree = getFilteredAssetsTree();
+    console.log("\n📁 Estructura detectada:\n" + projectTree + "\n");
 
-      session.reset();
-      session.addUserMessage(prompt);
-      result = await generateWithGeminiChat(session.getMessages());
-      session.addAssistantMessage(result);
-      sessionsByPanel.set(panel, session);
-    } else if (model === "chatgpt") {
-      result = await generateWithChatGPT(prompt, subModel || "gpt-4o-mini");
-    } else if (model === "deepseek") {
-      result = await generateWithDeepSeek(prompt);
-    } else if (model === "openrouter") {
-      if (!subModel) {
-        vscode.window.showErrorMessage("Debes indicar un submodelo de OpenRouter.");
-        return;
-      }
-      result = await generateWithOpenRouter(prompt, subModel);
-    }
+    const prompt = buildPrompt(methodName, className, code, projectTree);
+    const handler = modelHandlers[model];
+    if (!handler) throw new Error(`Modelo no válido: ${model}`);
 
+    // 👇 Aquí también
+    const result = await handler(prompt, panel, subModel ?? undefined);
     panel.webview.postMessage({ command: "showResult", result });
-
-    // ===  Analizar si el modelo pidió clases adicionales ===
-    const dependencyPrompt = handleDependencyResponse(result);
-
-    if (dependencyPrompt) {
-      
-      // ===  Volver a consultar al modelo con el nuevo prompt ===
-      let dependencyResult = "";
-
-      if (model === "gemini") {
-        const session = sessionsByPanel.get(panel)!;
-        session.addUserMessage(dependencyPrompt);
-        dependencyResult = await generateWithGeminiChat(session.getMessages());
-        session.addAssistantMessage(dependencyResult);
-      } else if (model === "chatgpt") {
-        dependencyResult = await generateWithChatGPT(dependencyPrompt, subModel || "gpt-4o-mini");
-      } else if (model === "deepseek") {
-        dependencyResult = await generateWithDeepSeek(dependencyPrompt);
-      } else if (model === "openrouter") {
-        dependencyResult = await generateWithOpenRouter(dependencyPrompt, subModel!);
-      }
-
-      // ===  Mostrar segunda respuesta en UI y guardar ===
-      panel.webview.postMessage({ command: "showDependencyResult", result: dependencyResult });
-
-      if (dependencyResult && !dependencyResult.startsWith("Modelo no válido") && !dependencyResult.toLowerCase().includes("error")) {
-        const workspaceFolders = vscode.workspace.workspaceFolders;
-        if (workspaceFolders && workspaceFolders.length > 0) {
-          const workspaceRoot = workspaceFolders[0].uri.fsPath;
-          saveUnityTest(workspaceRoot, dependencyResult, className, methodName, model);
-        }
-      }
-
-    } else {
-      // Si no hay dependencias, igual guardamos la primera respuesta
-      console.log("ERRRORRRRRRRRRRRRRRRRRR")
-      if (result && !result.startsWith("Modelo no válido") && !result.toLowerCase().includes("error")) {
-        const workspaceFolders = vscode.workspace.workspaceFolders;
-        if (workspaceFolders && workspaceFolders.length > 0) {
-          const workspaceRoot = workspaceFolders[0].uri.fsPath;
-          saveUnityTest(workspaceRoot, result, className, methodName, model);
-        }
-      }
-    }
+    await handleDependencies(model, panel, subModel, result, className, methodName);
 
   } catch (err: any) {
     vscode.window.showErrorMessage("Error al generar: " + err.message);
   }
 }
 
-//// ////////////////////
-
-
-
-
-// Mapa global para mantener sesiones por panel 
-const sessionsByPanel = new WeakMap<vscode.WebviewPanel, ChatSession>();
-
+// === Crear panel Webview ===
 export async function createWebviewPanel(context: vscode.ExtensionContext, code: string) {
   const panel = vscode.window.createWebviewPanel(
     'unityTestIAView',
@@ -129,16 +115,9 @@ export async function createWebviewPanel(context: vscode.ExtensionContext, code:
 
   // Modelos disponibles
   const models: { id: string; name: string; type?: string }[] = [];
-  if (process.env.GEMINI_API_KEY) {
-    models.push({ id: "gemini", name: "Google Gemini", type: "direct" });
-  }
-  if (process.env.OPENAI_API_KEY) {
-    models.push({ id: "chatgpt", name: "ChatGPT", type: "direct" });
-  }
-
-  if (process.env.DEEPSEEK_API_KEY) {
-    models.push({ id: "deepseek", name: "DeepSeek", type: "direct" });
-  }
+  if (process.env.GEMINI_API_KEY) models.push({ id: "gemini", name: "Google Gemini", type: "direct" });
+  if (process.env.OPENAI_API_KEY) models.push({ id: "chatgpt", name: "ChatGPT", type: "direct" });
+  if (process.env.DEEPSEEK_API_KEY) models.push({ id: "deepseek", name: "DeepSeek", type: "direct" });
 
   let openRouterModels: any[] = [];
   if (process.env.OPENROUTER_API_KEY) {
@@ -160,13 +139,11 @@ export async function createWebviewPanel(context: vscode.ExtensionContext, code:
   html = html.replace('@@scriptUri', scriptUri.toString());
   panel.webview.html = html;
 
-  // Pasar modelos iniciales
+  // Inicializar UI
   panel.webview.postMessage({ command: "setModels", models });
-
-  // Crear una sesión de chat específica para este panel
   const session = new ChatSession();
   sessionsByPanel.set(panel, session);
-  // Eventos del webview
+
   panel.webview.onDidReceiveMessage(async (message) => {
     switch (message.command) {
       case 'validateInputs': {
@@ -186,7 +163,6 @@ export async function createWebviewPanel(context: vscode.ExtensionContext, code:
           panel.webview.postMessage({ command: 'resetInputs' });
           return;
         }
-
         panel.webview.postMessage({ command: 'goToStep2', className, methodName });
         break;
       }
@@ -210,6 +186,7 @@ export async function createWebviewPanel(context: vscode.ExtensionContext, code:
         await handleGenerate(className, methodName, message.model, message.subModel, code, panel);
         break;
       }
+
       case 'chatMessage': {
         const session = sessionsByPanel.get(panel);
         if (!session) {
@@ -220,20 +197,12 @@ export async function createWebviewPanel(context: vscode.ExtensionContext, code:
         const text = String(message.text || "").trim();
         if (!text) return;
 
-        // Agregar el mensaje del usuario al historial
         session.addUserMessage(text);
-
-        // Generar respuesta con todo el contexto actual
         const reply = await generateWithGeminiChat(session.getMessages());
-
-        // Guardar la respuesta en la sesión
         session.addAssistantMessage(reply);
-
-        // Enviar la respuesta de vuelta a la UI
         panel.webview.postMessage({ command: 'chatResponse', text: reply });
         break;
       }
-
     }
   });
 }
