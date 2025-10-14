@@ -12,10 +12,18 @@ import { saveUnityTest } from '../utils/testSaver';
 import { getFilteredAssetsTree } from '../utils/getFilteredAssetsTree';
 import { handleDependencyResponse } from "../utils/dependencyPromptHandler";
 
-// === Sesiones por panel ===
+/**
+ * Mapa global que asocia un panel de Webview con su sesión de chat correspondiente.
+ * Permite mantener conversaciones independientes por panel abierto.
+ * @type {WeakMap<vscode.WebviewPanel, ChatSession>}
+ */
 const sessionsByPanel = new WeakMap<vscode.WebviewPanel, ChatSession>();
 
-// === Manejadores por modelo ===
+/**
+ * Objeto que mapea los modelos disponibles a sus funciones de generación de contenido.
+ * Cada modelo define cómo construir la respuesta a partir de un prompt.
+ * @type {Record<string, (prompt: string, panel: vscode.WebviewPanel, subModel?: string) => Promise<string>>}
+ */
 const modelHandlers: Record<string, (prompt: string, panel: vscode.WebviewPanel, subModel?: string) => Promise<string>> = {
   gemini: async (prompt, panel) => {
     let session = sessionsByPanel.get(panel);
@@ -36,7 +44,13 @@ const modelHandlers: Record<string, (prompt: string, panel: vscode.WebviewPanel,
   },
 };
 
-// === Guardar resultado si es válido ===
+/**
+ * Guarda el resultado generado en un archivo de test si es válido.
+ * @param {string} result - Código generado por el modelo.
+ * @param {string} className - Nombre de la clase objetivo.
+ * @param {string} methodName - Nombre del método objetivo.
+ * @param {string} model - Modelo utilizado para la generación.
+ */
 function saveResult(result: string, className: string, methodName: string, model: string) {
   if (result && !result.startsWith("Modelo no válido") && !result.toLowerCase().includes("error")) {
     const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -47,7 +61,18 @@ function saveResult(result: string, className: string, methodName: string, model
   }
 }
 
-// === Manejar dependencias ===
+/**
+ * Maneja el flujo cuando el resultado inicial del modelo incluye dependencias adicionales.
+ * En caso afirmativo, genera un nuevo prompt con esas dependencias y vuelve a consultar el modelo.
+ * @async
+ * @param {string} model - Modelo utilizado.
+ * @param {vscode.WebviewPanel} panel - Panel asociado a la generación.
+ * @param {string|null} subModel - Submodelo a usar (opcional).
+ * @param {string} result - Resultado inicial del modelo.
+ * @param {string} className - Nombre de la clase objetivo.
+ * @param {string} methodName - Nombre del método objetivo.
+ * @throws {Error} Si el modelo no es válido.
+ */
 async function handleDependencies(
   model: string,
   panel: vscode.WebviewPanel,
@@ -70,7 +95,18 @@ async function handleDependencies(
   saveResult(dependencyResult, className, methodName, model);
 }
 
-// === Generar código optimizado ===
+/**
+ * Ejecuta la generación de código de prueba a partir de la clase, método y modelo seleccionados.
+ * También maneja las dependencias que puedan surgir de la respuesta del modelo.
+ * @async
+ * @param {string} className - Nombre de la clase objetivo.
+ * @param {string} methodName - Nombre del método objetivo.
+ * @param {string} model - Modelo utilizado.
+ * @param {string|null} subModel - Submodelo (opcional).
+ * @param {string} code - Código original.
+ * @param {vscode.WebviewPanel} panel - Panel asociado.
+ * @throws {Error} Si no se encuentra el modelo especificado.
+ */
 async function handleGenerate(
   className: string,
   methodName: string,
@@ -87,7 +123,6 @@ async function handleGenerate(
     const handler = modelHandlers[model];
     if (!handler) throw new Error(`Modelo no válido: ${model}`);
 
-    // 👇 Aquí también
     const result = await handler(prompt, panel, subModel ?? undefined);
     panel.webview.postMessage({ command: "showResult", result });
     await handleDependencies(model, panel, subModel, result, className, methodName);
@@ -97,7 +132,13 @@ async function handleGenerate(
   }
 }
 
-// === Crear panel Webview ===
+/**
+ * Crea e inicializa un panel de Webview en VS Code para la generación de tests unitarios asistidos por IA.
+ * Carga los modelos disponibles, el HTML de la interfaz y maneja los eventos de interacción desde el frontend.
+ * @async
+ * @param {vscode.ExtensionContext} context - Contexto de la extensión de VS Code.
+ * @param {string} code - Código fuente original.
+ */
 export async function createWebviewPanel(context: vscode.ExtensionContext, code: string) {
   const panel = vscode.window.createWebviewPanel(
     'unityTestIAView',
