@@ -1,5 +1,5 @@
 // scripts/chatManager.js
-import { showLoadingUI, hideLoadingUI } from "./uiManager.js";
+import { hideLoadingUI } from "./uiManager.js";
 
 /**
  * Inicializa la lógica del chat (envío de mensajes, enter, scroll, etc.)
@@ -27,9 +27,6 @@ function handleSend(vscode, chatInput) {
   appendChatMessage("user", text);
 
   vscode.postMessage({ command: "chatMessage", text });
-
-  // Spinner local del chat, no el global de resultCard
-  showLoadingUI(false);
 }
 
 /**
