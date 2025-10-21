@@ -146,6 +146,7 @@ export async function createWebviewPanel(context: vscode.ExtensionContext, code:
     vscode.ViewColumn.Beside,
     {
       enableScripts: true,
+      retainContextWhenHidden: true,
       localResourceRoots: [
         vscode.Uri.file(path.join(context.extensionPath, 'ui')),
         vscode.Uri.file(path.join(context.extensionPath, 'assets')),
