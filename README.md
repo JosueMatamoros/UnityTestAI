@@ -31,8 +31,8 @@ The tool helps to determine which LLM provides the best results in terms of cove
 2. Open the folder in Visual Studio Code.
 3. Run:
    ```bash
-   # install dependencies and build/watch to generate dist/ (bundle.js & bundle.css)   
-   npm install && npm run watch 
+   # install dependencies and build/watch to generate dist/ (bundle.js & bundle.css)
+   npm install && npm run watch
    ```
 4. Press `F5` to launch the extension in a new VSCode window.
 
@@ -108,7 +108,7 @@ OPENROUTER_API_KEY=your_openrouter_key
 ---
 ## Prompt Specification
 
-The extension relies on a **base prompt** that defines how LLMs should generate Unity unit tests.  
+The extension relies on a **base prompt** that defines how LLMs should generate Unity unit tests.
 Only an excerpt is shown here for clarity:
 
 > [!IMPORTANT]
@@ -116,7 +116,7 @@ Only an excerpt is shown here for clarity:
 > You are an expert Software Engineer specialized in testing and quality assurance.
 > Your task is to generate unit tests using White Box methods.
 > Objective:
-> Generate the absolute minimum number of Unity Test Framework (NUnit 3.x) 
+> Generate the absolute minimum number of Unity Test Framework (NUnit 3.x)
 > test methods required to achieve 100% decision coverage...
 > ```
 > *(excerpt)*
@@ -131,18 +131,27 @@ The complete specification is stored in:
 
 ```
 
+
+### First prompt send to the LLM
+The location of this .txt file is relative to your system. If you want to know the exact path, you can check it in the developer console of the extension.
+```bash
+/Users/yourUser/Library/Application Support/Code/User/globalStorage/undefined_publisher.unitytestia
+```
+This is the specific path in my case. It will vary depending on your system and the location of VS Code.
+yourUser is just an example; if you want to verify it on your machine, replace it with your actual system username.
+
 ### Customization
 If you want to:
 - Adjust coverage strategy (e.g., black-box instead of white-box),
 - Change test framework conventions,
 - Or simplify the constraints,
 
-you can directly **edit** the `basePrompt.txt` file.  
+you can directly **edit** the `basePrompt.txt` file.
 The extension will automatically pick up the new instructions on the next run.
 
 ## Contributing
 > [!NOTE]
-> Contributions are welcome!  
+> Contributions are welcome!
 > Please fork the repository and submit pull requests with clear descriptions.
 
 ## License
