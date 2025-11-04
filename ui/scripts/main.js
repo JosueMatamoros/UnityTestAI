@@ -145,8 +145,8 @@ window.addEventListener("message", (event) => {
   const message = event.data;
 
   switch (message.command) {
-    /* ---------------------------------------- 
-      Mostrar la respuesta generada por el LLM 
+    /* ----------------------------------------
+      Mostrar la respuesta generada por el LLM
     ---------------------------------------- */
     case "showResult":
       hideLoadingUI();
@@ -159,8 +159,8 @@ window.addEventListener("message", (event) => {
       renderResult(message.result, resultContainer, copyBtn, true);
       showChatUI();
       break;
-    /* ---------------------------------------- 
-      Poblar el menú de modelos LLM disponibles 
+    /* ----------------------------------------
+      Poblar el menú de modelos LLM disponibles
     ---------------------------------------- */
     case "setModels":
       setModels(
@@ -171,8 +171,8 @@ window.addEventListener("message", (event) => {
       );
       break;
 
-    /* ---------------------------------------- 
-      Poblar submodelos (OpenRouter) 
+    /* ----------------------------------------
+      Poblar submodelos (OpenRouter)
     ---------------------------------------- */
     case "setSubModels":
       setSubModels(
@@ -183,8 +183,8 @@ window.addEventListener("message", (event) => {
       );
       break;
 
-    /* ---------------------------------------- 
-      Solicitar entradas de clase y método 
+    /* ----------------------------------------
+      Solicitar entradas de clase y método
     ---------------------------------------- */
     case "requestInputs": {
       const pending = stepInput.value.trim();
@@ -226,8 +226,8 @@ window.addEventListener("message", (event) => {
       });
       break;
     }
-    /* ---------------------------------------- 
-        Reiniciar los campos de entrada y UI 
+    /* ----------------------------------------
+        Reiniciar los campos de entrada y UI
     ---------------------------------------- */
     case "resetInputs":
       setStepperState(0, "", "");
@@ -242,15 +242,15 @@ window.addEventListener("message", (event) => {
       resetUI();
       break;
 
-    /* ---------------------------------------- 
-        Mostrar respuesta dentro del chat 
+    /* ----------------------------------------
+        Mostrar respuesta dentro del chat
     ---------------------------------------- */
     case "chatResponse":
       hideLoadingUI();
       appendChatMessage("assistant", message.text);
       break;
 
-    /* ---------------------------------------- 
+    /* ----------------------------------------
         Avanzar al paso 2 (generación del test)
     ---------------------------------------- */
     case "goToStep2":

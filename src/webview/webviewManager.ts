@@ -92,6 +92,29 @@ function saveResult(
   }
 }
 
+function saveFirstPrompt(
+  context: vscode.ExtensionContext,
+  prompt: string,
+  className: string,
+  methodName: string
+) {
+  const storagePath = context.globalStorageUri.fsPath;
+
+  // Crear el folder si no existe
+  if (!fs.existsSync(storagePath)) {
+    fs.mkdirSync(storagePath, { recursive: true });
+  }
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const fileName = `${className}_${methodName}_${timestamp}_prompt.txt`;
+  const filePath = path.join(storagePath, fileName);
+
+  fs.writeFileSync(filePath, prompt, "utf8");
+  console.log(`Prompt inicial guardado en almacenamiento local: ${filePath}`);
+}
+
+
+
 /**
  * Maneja el flujo cuando el resultado inicial del modelo incluye dependencias adicionales.
  * En caso afirmativo, genera un nuevo prompt con esas dependencias y vuelve a consultar el modelo.
@@ -151,14 +174,16 @@ async function handleGenerate(
   model: string,
   subModel: string | null,
   code: string,
-  panel: vscode.WebviewPanel
+  panel: vscode.WebviewPanel,
+  context: vscode.ExtensionContext
+
 ) {
   generationMetaByPanel.set(panel, { className, methodName });
   try {
     const projectTree = getFilteredAssetsTree();
-    console.log("\n📁 Estructura detectada:\n" + projectTree + "\n");
-
     const prompt = buildPrompt(methodName, className, code, projectTree);
+    saveFirstPrompt(context, prompt, className, methodName);
+
     const handler = modelHandlers[model];
     if (!handler) throw new Error(`Modelo no válido: ${model}`);
 
@@ -292,7 +317,8 @@ export async function createWebviewPanel(
           model,
           subModel,
           code,
-          panel
+          panel,
+          context
         );
         break;
       }
@@ -305,7 +331,8 @@ export async function createWebviewPanel(
           message.model,
           message.subModel,
           code,
-          panel
+          panel,
+          context
         );
         break;
       }

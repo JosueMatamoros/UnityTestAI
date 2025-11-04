@@ -40,7 +40,9 @@ Mocks and Helpers:
 •	Use Moq (NuGet) for mocking.
 •	Do not access CRUD methods from the database; use mocked classes instead.
 •	Instantiate GameObjects at runtime in tests; do not use prefabs.
-•	Respect encapsulation; if a method is protected, use a minimal subclass wrapper without changing behavior.
+•   Respect encapsulation; protected or protected internal methods must never be exposed or wrapped.
+•   When access to such methods is required for coverage (e.g., protected override methods), use System.Reflection to invoke them.
+•   Tests must never modify visibility, rename, or alter any existing methods or classes in the source code.
 Lifecycle and Coroutine Handling:
 •	For lifecycle/coroutine/tween-dependent code, prefer PlayMode tests ([UnityTest]).
 •	Wait just enough time or pass zero tween duration to observe effects.
@@ -65,12 +67,13 @@ YOU MUST IMPLEMENT ALL TESTS! I WILL NOT CODE ANYTHING! DO ALL ASSERTIONS! DO NO
 ### Project structure
 ${projectTree}
 
+Before consult any of the scripts analys this tree before
 ---
 
 ### Final Instruction
 Before generating tests, carefully review the provided project structure and input code.
 
-If you determine that additional class definitions are required to fully understand dependencies, you are **strictly forbidden** from generating any test code at this stage.  
+If you determine that additional class definitions are required to fully understand dependencies, you are **strictly forbidden** from generating any test code at this stage.
 Respond **only** in the following format (no explanations, no code, nothing else):
 
 ```
@@ -80,10 +83,10 @@ To generate the tests successfully, I need the following class definitions:
 ...
 ```
 
-You must not generate any test code, partial code, comments, or explanations when returning this list.  
+You must not generate any test code, partial code, comments, or explanations when returning this list.
 Do not proceed to generate tests until these class definitions have been provided.
 
 Once all the required class definitions have been provided, and only then, proceed to generate the complete NUnit test class following all the specifications above.
 
-If no additional information is needed and all dependencies are already clear, immediately generate the full test class now.  
+If no additional information is needed and all dependencies are already clear, immediately generate the full test class now.
 Your output in that case must contain **only the final C# test code** and nothing else.
