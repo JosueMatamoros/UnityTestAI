@@ -4,7 +4,7 @@ import * as vscode from "vscode";
 
 /**
  * Analiza la respuesta de un modelo LLM para detectar solicitudes de clases adicionales
- * necesarias para completar la generación de pruebas.  
+ * necesarias para completar la generación de pruebas.
  * Si se encuentran dependencias, construye SOLO el bloque adicional con las definiciones
  * de clases, sin volver a incluir el prompt original.
  *
@@ -21,13 +21,22 @@ export function handleDependencyResponse(llmResponse: string): string | null {
     .replace(/```$/, "")
     .trim();
 
-  // Salir si la respuesta no contiene el trigger 
+  // Salir si la respuesta no contiene el trigger
   if (!cleanResponse.startsWith(dependencyTrigger)) {
     return null;
   }
 
-  // Extraer rutas que comiencen con Assets/...
-  const filePaths = Array.from(cleanResponse.matchAll(/Assets\/[^\s]+/g)).map(match => match[0]);
+  const filePaths: string[] = [];
+
+  for (const match of cleanResponse.matchAll(/(?:Assets\/)?[^\s]+\.cs/g)) {
+    const rawPath = match[0];
+    const normalized = rawPath.startsWith("Assets/")
+      ? rawPath
+      : `Assets/${rawPath}`;
+    console.log(`🧩 Ruta detectada: ${normalized}`);
+    filePaths.push(rawPath);
+  }
+
   if (filePaths.length === 0) {
     console.warn("No se encontraron rutas de dependencias en la respuesta.");
     return null;
@@ -36,14 +45,14 @@ export function handleDependencyResponse(llmResponse: string): string | null {
   // Leer y concatenar contenido de las clases referenciadas
   const dependenciesContent = getClassContents(filePaths);
 
-  // Nuevo prompt 
+  // Nuevo prompt
   const dependencyBlock = `### Additional Class Definitions\n${dependenciesContent}\n\nThese are the required class definitions needed to complete the requested test generation. Please continue generating the tests using this additional context.`;
   return dependencyBlock;
 }
 
 /**
  * Lee el contenido de las clases especificadas en las rutas dadas y concatena sus textos,
- * incluyendo comentarios de referencia de archivo.  
+ * incluyendo comentarios de referencia de archivo.
  * Solo busca dentro de la carpeta raíz del workspace actual en VS Code.
  *
  * @param {string[]} filePaths - Lista de rutas relativas a partir de `Assets/`.
@@ -57,14 +66,14 @@ function getClassContents(filePaths: string[]): string {
   let combinedContent = "";
 
   for (const file of filePaths) {
-    const relativePath = file.replace(/^Assets[\\/]/, "");
-    const absolutePath = path.join(rootPath, relativePath);
+    const absolutePath = path.join(rootPath, file);
 
     if (fs.existsSync(absolutePath)) {
+      console.log(`✅ Se obtuvo la ruta exitosamente: ${absolutePath}`);
       const content = fs.readFileSync(absolutePath, "utf8");
       combinedContent += `\n\n// File: ${file}\n${content}`;
     } else {
-      console.warn(` No se encontró el archivo: ${absolutePath}`);
+      console.warn(`❌ No se obtuvo la ruta exitosamente: ${absolutePath}`);
     }
   }
 
