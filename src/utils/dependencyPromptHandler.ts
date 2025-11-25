@@ -12,7 +12,8 @@ import * as vscode from "vscode";
  * @returns {string|null} Texto adicional con definiciones de clases si se requieren dependencias, o `null` si no aplica.
  */
 export function handleDependencyResponse(llmResponse: string): string | null {
-  const dependencyTrigger = "To generate the tests successfully, I need the following class definitions:";
+  const dependencyTrigger =
+    "To generate the tests successfully, I need the following class definitions:";
 
   // Limpiar delimitadores Markdown y espacios innecesarios
   const cleanResponse = llmResponse
@@ -21,20 +22,26 @@ export function handleDependencyResponse(llmResponse: string): string | null {
     .replace(/```$/, "")
     .trim();
 
-  // Salir si la respuesta no contiene el trigger
+  // Salir si no contiene el trigger
   if (!cleanResponse.startsWith(dependencyTrigger)) {
     return null;
   }
 
   const filePaths: string[] = [];
 
+  // Extraer rutas tipo "Assets/.../Archivo.cs" o "Game/...cs"
   for (const match of cleanResponse.matchAll(/(?:Assets\/)?[^\s]+\.cs/g)) {
     const rawPath = match[0];
+
+    // Siempre normalizar a "Assets/.../file.cs"
     const normalized = rawPath.startsWith("Assets/")
       ? rawPath
       : `Assets/${rawPath}`;
+
     console.log(`🧩 Ruta detectada: ${normalized}`);
-    filePaths.push(rawPath);
+
+    // Guardar siempre la normalizada
+    filePaths.push(normalized);
   }
 
   if (filePaths.length === 0) {
@@ -42,21 +49,21 @@ export function handleDependencyResponse(llmResponse: string): string | null {
     return null;
   }
 
-  // Leer y concatenar contenido de las clases referenciadas
+  // Leer y concatenar contenido de dependencias
   const dependenciesContent = getClassContents(filePaths);
 
-  // Nuevo prompt
-  const dependencyBlock = `### Additional Class Definitions\n${dependenciesContent}\n\nThese are the required class definitions needed to complete the requested test generation. Please continue generating the tests using this additional context.`;
-  return dependencyBlock;
+  return `### Additional Class Definitions
+${dependenciesContent}
+
+These are the required class definitions needed to complete the requested test generation. Please continue generating the tests using this additional context.`;
 }
 
 /**
- * Lee el contenido de las clases especificadas en las rutas dadas y concatena sus textos,
- * incluyendo comentarios de referencia de archivo.
- * Solo busca dentro de la carpeta raíz del workspace actual en VS Code.
+ * Lee el contenido de las clases especificadas y concatena sus textos.
+ * Corrige rutas duplicadas como "Assets/Assets/".
  *
- * @param {string[]} filePaths - Lista de rutas relativas a partir de `Assets/`.
- * @returns {string} Contenido concatenado de las clases encontradas.
+ * @param {string[]} filePaths - Lista de rutas empezando con "Assets/".
+ * @returns {string} Contenido concatenado.
  */
 function getClassContents(filePaths: string[]): string {
   const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -66,7 +73,11 @@ function getClassContents(filePaths: string[]): string {
   let combinedContent = "";
 
   for (const file of filePaths) {
-    const absolutePath = path.join(rootPath, file);
+    // Quitar el prefijo "Assets/" porque rootPath YA termina en ".../Assets"
+    const relative = file.replace(/^Assets\//, "");
+
+    // Construir la ruta final
+    const absolutePath = path.join(rootPath, relative);
 
     if (fs.existsSync(absolutePath)) {
       console.log(`✅ Se obtuvo la ruta exitosamente: ${absolutePath}`);

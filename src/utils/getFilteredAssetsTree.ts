@@ -3,9 +3,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 
 /**
- * Genera una representación en texto del árbol de directorios dentro de la carpeta `Assets` de un proyecto Unity.
- *
- * @returns {string} Árbol de archivos en formato legible con indentación por niveles.
+ * Genera un árbol completo de TODAS las carpetas y archivos .cs dentro de Assets
  */
 export function getFilteredAssetsTree(): string {
   const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -16,54 +14,44 @@ export function getFilteredAssetsTree(): string {
 
   const workspaceRoot = workspaceFolders[0].uri.fsPath;
 
-  // Detectar si ya estamos dentro de Assets o si hay que entrar a ella
+  // Detectar si estamos ya en Assets
   const assetsDir =
     path.basename(workspaceRoot).toLowerCase() === "assets"
       ? workspaceRoot
       : path.join(workspaceRoot, "Assets");
 
   if (!fs.existsSync(assetsDir)) {
-    console.error(" No se encontró la carpeta 'Assets' en:", assetsDir);
+    console.error("No se encontró la carpeta 'Assets' en:", assetsDir);
     return "";
   }
 
   let tree = "Assets\n";
-  const entries = fs.readdirSync(assetsDir, { withFileTypes: true });
+  tree += getRecursiveTree(assetsDir, 1);
 
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const name = entry.name;
-
-    if (name !== "Scripts") {
-      tree += `  - ${name}\n`;
-    } else {
-      const scriptsPath = path.join(assetsDir, name);
-      tree += `  - ${name}\n`;
-      tree += getScriptsRecursive(scriptsPath, 2);
-    }
-  }
+  console.log("\n====== UNITY ASSETS TREE ======\n");
+  console.log(tree);
+  console.log("\n===============================\n");
 
   return tree.trim();
 }
 
 /**
- * Recorre recursivamente la carpeta `Scripts` y devuelve su estructura jerárquica
- * incluyendo subdirectorios y archivos `.cs`.
- *
- * @param {string} dirPath - Ruta absoluta de la carpeta actual que se está recorriendo.
- * @param {number} depth - Nivel de indentación para formatear la salida.
- * @returns {string} Texto con la estructura jerárquica de la carpeta.
+ * Recorre recursivamente TODAS las carpetas y archivos .cs dentro de un directorio dado.
  */
-function getScriptsRecursive(dirPath: string, depth: number): string {
+function getRecursiveTree(dirPath: string, depth: number): string {
   let output = "";
+
+  const indent = "  ".repeat(depth);
   const items = fs.readdirSync(dirPath, { withFileTypes: true });
 
   for (const item of items) {
+    const fullPath = path.join(dirPath, item.name);
+
     if (item.isDirectory()) {
-      output += `${" ".repeat(depth * 2)}- ${item.name}\n`;
-      output += getScriptsRecursive(path.join(dirPath, item.name), depth + 1);
+      output += `${indent}- ${item.name}\n`;
+      output += getRecursiveTree(fullPath, depth + 1);
     } else if (item.name.endsWith(".cs")) {
-      output += `${" ".repeat(depth * 2)}- ${item.name}\n`;
+      output += `${indent}- ${item.name}\n`;
     }
   }
 

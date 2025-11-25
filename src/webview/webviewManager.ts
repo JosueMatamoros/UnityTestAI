@@ -93,26 +93,21 @@ function saveResult(
 }
 
 function saveFirstPrompt(
-  context: vscode.ExtensionContext,
-  prompt: string,
-  className: string,
-  methodName: string
+  prompt: string
 ) {
-  const storagePath = context.globalStorageUri.fsPath;
+  // Ruta a la carpeta Downloads del usuario
+  const downloadsPath = path.join(require("os").homedir(), "Downloads");
 
-  // Crear el folder si no existe
-  if (!fs.existsSync(storagePath)) {
-    fs.mkdirSync(storagePath, { recursive: true });
+  // Crear carpeta Downloads si no existe (por si alguien vive al límite)
+  if (!fs.existsSync(downloadsPath)) {
+    fs.mkdirSync(downloadsPath, { recursive: true });
   }
 
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const fileName = `${className}_${methodName}_${timestamp}_prompt.txt`;
-  const filePath = path.join(storagePath, fileName);
+  const filePath = path.join(downloadsPath, "primerPrompt.txt");
 
   fs.writeFileSync(filePath, prompt, "utf8");
-  console.log(`Prompt inicial guardado en almacenamiento local: ${filePath}`);
+  console.log(`Prompt inicial guardado en: ${filePath}`);
 }
-
 
 
 /**
@@ -182,7 +177,7 @@ async function handleGenerate(
   try {
     const projectTree = getFilteredAssetsTree();
     const prompt = buildPrompt(methodName, className, code, projectTree);
-    saveFirstPrompt(context, prompt, className, methodName);
+    saveFirstPrompt(prompt);
 
     const handler = modelHandlers[model];
     if (!handler) throw new Error(`Modelo no válido: ${model}`);
