@@ -1,4 +1,9 @@
-export async function generateWithOpenRouter(prompt: string, model: string): Promise<string> {
+import { ChatMessage } from "./sessionManager";
+
+export async function generateWithOpenRouterChat(
+  messages: ChatMessage[],
+  model: string
+): Promise<string> {
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -10,7 +15,15 @@ export async function generateWithOpenRouter(prompt: string, model: string): Pro
       },
       body: JSON.stringify({
         model,
-        messages: [{ role: "user", content: prompt }],
+        messages: messages.map(m => ({
+          role:
+            m.role === "user"
+              ? "user"
+              : m.role === "assistant"
+              ? "assistant"
+              : "system",
+          content: m.content,
+        })),
       }),
     });
 

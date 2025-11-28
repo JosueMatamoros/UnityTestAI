@@ -6,7 +6,7 @@ import { collectClassAndMethod } from "../collectInputs";
 import { buildPrompt } from "../prompts/promptBuilder";
 import { ChatSession } from "../llm/sessionManager";
 import {
-  generateWithOpenRouter,
+  generateWithOpenRouterChat,
   generateWithChatGPT,
   generateWithDeepSeek,
   generateWithGeminiChat,
@@ -30,7 +30,12 @@ const sessionsByPanel = new WeakMap<vscode.WebviewPanel, ChatSession>();
  */
 const generationMetaByPanel = new WeakMap<
   vscode.WebviewPanel,
-  { className: string; methodName: string }
+  {
+    className: string;
+    methodName: string;
+    model: string;
+    subModel: string | null;
+  }
 >();
 
 /**
@@ -60,9 +65,22 @@ const modelHandlers: Record<
   chatgpt: (prompt, _panel, subModel) =>
     generateWithChatGPT(prompt, subModel || "gpt-4o-mini"),
   deepseek: (prompt) => generateWithDeepSeek(prompt),
-  openrouter: (prompt, _panel, subModel) => {
+  openrouter: async (prompt, panel, subModel) => {
     if (!subModel) throw new Error("Debes indicar un submodelo de OpenRouter.");
-    return generateWithOpenRouter(prompt, subModel);
+
+    let session = sessionsByPanel.get(panel);
+    if (!session) {
+      session = new ChatSession();
+      sessionsByPanel.set(panel, session);
+    }
+
+    session.addUserMessage(prompt);
+    const result = await generateWithOpenRouterChat(
+      session.getMessages(),
+      subModel
+    );
+    session.addAssistantMessage(result);
+    return result;
   },
 };
 
@@ -92,9 +110,7 @@ function saveResult(
   }
 }
 
-function saveFirstPrompt(
-  prompt: string
-) {
+function saveFirstPrompt(prompt: string) {
   // Ruta a la carpeta Downloads del usuario
   const downloadsPath = path.join(require("os").homedir(), "Downloads");
 
@@ -108,7 +124,6 @@ function saveFirstPrompt(
   fs.writeFileSync(filePath, prompt, "utf8");
   console.log(`Prompt inicial guardado en: ${filePath}`);
 }
-
 
 /**
  * Maneja el flujo cuando el resultado inicial del modelo incluye dependencias adicionales.
@@ -171,9 +186,8 @@ async function handleGenerate(
   code: string,
   panel: vscode.WebviewPanel,
   context: vscode.ExtensionContext
-
 ) {
-  generationMetaByPanel.set(panel, { className, methodName });
+  generationMetaByPanel.set(panel, { className, methodName, model, subModel });
   try {
     const projectTree = getFilteredAssetsTree();
     const prompt = buildPrompt(methodName, className, code, projectTree);
@@ -181,6 +195,8 @@ async function handleGenerate(
 
     const handler = modelHandlers[model];
     if (!handler) throw new Error(`Modelo no válido: ${model}`);
+
+    console.log(`🔧 Generando con modelo: ${model}`);
 
     const result = await handler(prompt, panel, subModel ?? undefined);
     panel.webview.postMessage({ command: "showResult", result });
@@ -343,15 +359,25 @@ export async function createWebviewPanel(
         if (!text) return;
 
         session.addUserMessage(text);
-        const reply = await generateWithGeminiChat(session.getMessages());
-        session.addAssistantMessage(reply);
-        panel.webview.postMessage({ command: "chatResponse", text: reply });
 
         const meta = generationMetaByPanel.get(panel);
-        if (meta) {
-          const { className, methodName } = meta;
-          saveResult(reply, className, methodName, "gemini");
+        if (!meta) {
+          vscode.window.showErrorMessage(
+            "No hay configuración de modelo cargada."
+          );
+          return;
         }
+
+        // ✅ DEBUG: Mostrar qué modelo y submodelo está usando
+        console.log(`🔧 Chat usando modelo: ${meta.model}`);
+        console.log(`🔧 Submodelo: ${meta.subModel ?? "N/A"}`);
+
+        const handler = modelHandlers[meta.model];
+        const reply = await handler(text, panel, meta.subModel ?? undefined);
+
+        session.addAssistantMessage(reply);
+
+        panel.webview.postMessage({ command: "chatResponse", text: reply });
 
         break;
       }
