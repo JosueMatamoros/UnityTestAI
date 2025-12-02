@@ -368,14 +368,11 @@ export async function createWebviewPanel(
           return;
         }
 
-        // ✅ DEBUG: Mostrar qué modelo y submodelo está usando
-        console.log(`🔧 Chat usando modelo: ${meta.model}`);
-        console.log(`🔧 Submodelo: ${meta.subModel ?? "N/A"}`);
-
         const handler = modelHandlers[meta.model];
         const reply = await handler(text, panel, meta.subModel ?? undefined);
 
         session.addAssistantMessage(reply);
+        saveResult(reply, meta.className, meta.methodName, meta.model);
 
         panel.webview.postMessage({ command: "chatResponse", text: reply });
 
