@@ -1,5 +1,5 @@
 export function renderResult(raw, resultContainer, copyBtn) {
-  const regex = /```csharp([\s\S]*?)```/gi;
+  const regex = /```(?:csharp)?([\s\S]*?)```/gi;
   const segments = [];
   let lastIndex = 0;
   let match;
