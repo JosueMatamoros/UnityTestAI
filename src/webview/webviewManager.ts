@@ -10,6 +10,7 @@ import {
   generateWithChatGPT,
   generateWithDeepSeek,
   generateWithGeminiChat,
+  generateWithLocalLlamaChat,
 } from "../llm";
 import { checkSymbols } from "../utils/codeValidation";
 import { loadOpenRouterModels } from "../utils/modelLoader";
@@ -65,6 +66,17 @@ const modelHandlers: Record<
   chatgpt: (prompt, _panel, subModel) =>
     generateWithChatGPT(prompt, subModel || "gpt-4o-mini"),
   deepseek: (prompt) => generateWithDeepSeek(prompt),
+  llamaLocal: async (prompt, panel) => {
+    let session = sessionsByPanel.get(panel);
+    if (!session) {
+      session = new ChatSession();
+      sessionsByPanel.set(panel, session);
+    }
+    session.addUserMessage(prompt);
+    const result = await generateWithLocalLlamaChat(session.getMessages());
+    session.addAssistantMessage(result);
+    return result;
+  },
   openrouter: async (prompt, panel, subModel) => {
     if (!subModel) throw new Error("Debes indicar un submodelo de OpenRouter.");
 
@@ -247,6 +259,8 @@ export async function createWebviewPanel(
     models.push({ id: "chatgpt", name: "ChatGPT", type: "direct" });
   if (process.env.DEEPSEEK_API_KEY)
     models.push({ id: "deepseek", name: "DeepSeek", type: "direct" });
+
+  models.push({ id: "llamaLocal", name: "Llama Local", type: "direct" });
 
   let openRouterModels: any[] = [];
   if (process.env.OPENROUTER_API_KEY) {
