@@ -52,10 +52,20 @@ export function handleDependencyResponse(llmResponse: string): string | null {
   // Leer y concatenar contenido de dependencias
   const dependenciesContent = getClassContents(filePaths);
 
-  return `### Additional Class Definitions
-${dependenciesContent}
+  return `Additional Class Definitions
+  ${dependenciesContent}
 
-These are the required class definitions needed to complete the requested test generation. Please continue generating the tests using this additional context.`;
+  These are the class definitions you requested.
+
+  Continue generating the test file for the previously specified target class and target method.
+
+  STRICT REQUIREMENTS:
+  Generate tests ONLY for the previously specified target method.
+  Do NOT generate tests for any other class, method, enum, or constant.
+  Generate exactly ONE C# file with exactly ONE [TestFixture] class.
+  Output ONLY raw C# code. No explanations. No markdown. No headings. No extra text.
+  Any violation makes the response invalid.
+  `;
 }
 
 /**
@@ -80,11 +90,11 @@ function getClassContents(filePaths: string[]): string {
     const absolutePath = path.join(rootPath, relative);
 
     if (fs.existsSync(absolutePath)) {
-      console.log(`✅ Se obtuvo la ruta exitosamente: ${absolutePath}`);
+      console.log(`Se obtuvo la ruta exitosamente: ${absolutePath}`);
       const content = fs.readFileSync(absolutePath, "utf8");
       combinedContent += `\n\n// File: ${file}\n${content}`;
     } else {
-      console.warn(`❌ No se obtuvo la ruta exitosamente: ${absolutePath}`);
+      console.warn(`No se obtuvo la ruta exitosamente: ${absolutePath}`);
     }
   }
 

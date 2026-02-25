@@ -12,7 +12,7 @@ import { ChatMessage } from "./sessionManager";
  */
 export async function generateWithLocalLlamaChat(
   messages: ChatMessage[],
-  model: string = "llama3"
+  model: string = "qwen2.5:14b"
 ): Promise<string> {
   try {
     const response = await fetch("http://localhost:11434/v1/chat/completions", {
@@ -31,7 +31,7 @@ export async function generateWithLocalLlamaChat(
               : "system",
           content: m.content,
         })),
-        temperature: 0.7,
+        temperature: 0,
       }),
     });
 
