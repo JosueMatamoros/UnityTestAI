@@ -32,6 +32,9 @@ export async function generateWithLocalLlamaChat(
           content: m.content,
         })),
         temperature: 0,
+        options: {
+          num_ctx: 8192,
+        },
       }),
     });
 

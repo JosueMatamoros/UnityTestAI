@@ -10,6 +10,8 @@ import {
   showLoadingUI,
   hideLoadingUI,
   resetUI,
+  updateAgentStatus,
+  clearAgentPipeline,
 } from "./managers/uiManager.js";
 import { initChat, appendChatMessage } from "./managers/chatManager.js";
 import "../styles/main.css";
@@ -148,8 +150,34 @@ window.addEventListener("message", (event) => {
     /* ----------------------------------------
       Mostrar la respuesta generada por el LLM
     ---------------------------------------- */
+    case "agentStatus":
+      // Hide the typing indicator — agent pipeline replaces it
+      hideLoadingUI();
+      updateAgentStatus(message.agent, message.status, message.detail);
+      break;
+
+    case "clearPipeline":
+      clearAgentPipeline();
+      break;
+
+    case "agentError": {
+      // Mark the currently-running agent step as error (red)
+      const running = document.querySelector(".agent-step--running");
+      if (running) {
+        const name = running.getAttribute("data-agent") || "Agent";
+        updateAgentStatus(name, "error", message.message);
+      }
+      hideLoadingUI();
+      break;
+    }
+
+    case "generationError":
+      hideLoadingUI();
+      break;
+
     case "showResult":
       hideLoadingUI();
+      clearAgentPipeline();
       renderResult(message.result, resultContainer, copyBtn);
       showChatUI();
       break;
@@ -230,6 +258,7 @@ window.addEventListener("message", (event) => {
         Reiniciar los campos de entrada y UI
     ---------------------------------------- */
     case "resetInputs":
+      clearAgentPipeline();
       setStepperState(0, "", "");
       applyStepUI(0, {
         currentStep,

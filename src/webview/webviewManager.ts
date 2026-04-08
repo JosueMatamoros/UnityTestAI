@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
 import { collectClassAndMethod } from "../collectInputs";
-import { buildPrompt } from "../prompts/promptBuilder";
+// buildPrompt is used inside each agent module, not here directly
 import { ChatSession } from "../llm/sessionManager";
 import {
   generateWithOpenRouterChat,
@@ -16,7 +16,8 @@ import { checkSymbols } from "../utils/codeValidation";
 import { loadOpenRouterModels } from "../utils/modelLoader";
 import { saveUnityTest } from "../utils/testSaver";
 import { getFilteredAssetsTree } from "../utils/getFilteredAssetsTree";
-import { handleDependencyResponse } from "../utils/dependencyPromptHandler";
+import { runDependencyResolver } from "../agents/dependencyResolver";
+import { saveAgentOutput } from "../agents/agentOutputSaver";
 
 /**
  * Mapa global que asocia un panel de Webview con su sesión de chat correspondiente.
@@ -123,46 +124,6 @@ function saveResult(
 }
 
 
-/**
- * Maneja el flujo cuando el resultado inicial del modelo incluye dependencias adicionales.
- * En caso afirmativo, genera un nuevo prompt con esas dependencias y vuelve a consultar el modelo.
- * @async
- * @param {string} model - Modelo utilizado.
- * @param {vscode.WebviewPanel} panel - Panel asociado a la generación.
- * @param {string|null} subModel - Submodelo a usar (opcional).
- * @param {string} result - Resultado inicial del modelo.
- * @param {string} className - Nombre de la clase objetivo.
- * @param {string} methodName - Nombre del método objetivo.
- * @throws {Error} Si el modelo no es válido.
- */
-async function handleDependencies(
-  model: string,
-  panel: vscode.WebviewPanel,
-  subModel: string | null,
-  result: string,
-  className: string,
-  methodName: string
-) {
-  const dependencyPrompt = handleDependencyResponse(result);
-  if (!dependencyPrompt) {
-    saveResult(result, className, methodName, model);
-    return;
-  }
-
-  const handler = modelHandlers[model];
-  if (!handler) throw new Error(`Modelo no válido: ${model}`);
-
-  const dependencyResult = await handler(
-    dependencyPrompt,
-    panel,
-    subModel ?? undefined
-  );
-  panel.webview.postMessage({
-    command: "showDependencyResult",
-    result: dependencyResult,
-  });
-  saveResult(dependencyResult, className, methodName, model);
-}
 
 /**
  * Ejecuta la generación de código de prueba a partir de la clase, método y modelo seleccionados.
@@ -176,6 +137,17 @@ async function handleDependencies(
  * @param {vscode.WebviewPanel} panel - Panel asociado.
  * @throws {Error} Si no se encuentra el modelo especificado.
  */
+/** Sends an agent status update to the webview UI. */
+function notifyAgent(
+  panel: vscode.WebviewPanel,
+  agent: string,
+  status: "running" | "done" | "error",
+  model?: string,
+  detail?: string
+) {
+  panel.webview.postMessage({ command: "agentStatus", agent, status, model, detail });
+}
+
 async function handleGenerate(
   className: string,
   methodName: string,
@@ -183,28 +155,42 @@ async function handleGenerate(
   subModel: string | null,
   code: string,
   panel: vscode.WebviewPanel,
-  context: vscode.ExtensionContext
+  _context: vscode.ExtensionContext
 ) {
   generationMetaByPanel.set(panel, { className, methodName, model, subModel });
+
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (!workspaceFolders?.length) {
+    vscode.window.showErrorMessage("No hay un workspace abierto.");
+    return;
+  }
+  const workspaceRoot = workspaceFolders[0].uri.fsPath;
+
   try {
     const projectTree = getFilteredAssetsTree();
-    const prompt = buildPrompt(methodName, className, code, projectTree);
+
+    // Clear previous pipeline
+    panel.webview.postMessage({ command: "clearPipeline" });
+
+    // Resolve the LLM handler for the selected model
     const handler = modelHandlers[model];
     if (!handler) throw new Error(`Modelo no válido: ${model}`);
 
-    console.log(`🔧 Generando con modelo: ${model}`);
-
-    const result = await handler(prompt, panel, subModel ?? undefined);
-    panel.webview.postMessage({ command: "showResult", result });
-    await handleDependencies(
-      model,
-      panel,
-      subModel,
-      result,
-      className,
-      methodName
+    // ── Step 1: Dependency Resolver ──────────────────────────────────────────
+    let currentAgent = "Dependency Resolver";
+    notifyAgent(panel, currentAgent, "running");
+    const depResult = await runDependencyResolver(
+      { code, projectTree, className, methodName, workspaceRoot },
+      (prompt) => handler(prompt, panel, subModel ?? undefined)
     );
+    const savedPath = saveAgentOutput("dependency-resolver", depResult);
+    notifyAgent(panel, currentAgent, "done", undefined, savedPath ?? undefined);
+
+    // ── TODO: remaining agents will be added here ────────────────────────────
+
   } catch (err: any) {
+    // Mark the last running agent as failed in the UI
+    panel.webview.postMessage({ command: "agentError", message: err.message });
     vscode.window.showErrorMessage("Error al generar: " + err.message);
   }
 }
@@ -320,6 +306,18 @@ export async function createWebviewPanel(
 
       case "generateFromConfig": {
         const { className, methodName, model, subModel } = message;
+
+        // Validate class and method exist in the open file
+        const { classOk, methodOk } = checkSymbols(code, className, methodName);
+        if (!classOk || !methodOk) {
+          const what = !classOk
+            ? `Class "${className}" not found`
+            : `Method "${methodName}" not found in "${className}"`;
+          vscode.window.showErrorMessage(`generateFromConfig: ${what} in the active file.`);
+          panel.webview.postMessage({ command: "generationError", message: what });
+          return;
+        }
+
         await handleGenerate(
           className,
           methodName,

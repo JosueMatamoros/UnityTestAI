@@ -45,6 +45,61 @@ export function resetUI() {
 }
 
 
+// === Pipeline de agentes ===
+
+/**
+ * Muestra o actualiza el estado de un agente en el pipeline.
+ * status: "running" | "done" | "error"
+ */
+/**
+ * @param {string} agentName
+ * @param {"running"|"done"|"error"} status
+ * @param {string} [model]   - model name shown while running
+ * @param {string} [detail]  - extra info (file path, etc.)
+ */
+export function updateAgentStatus(agentName, status, detail) {
+  const pipeline = document.getElementById("agentPipeline");
+  if (!pipeline) return;
+
+  pipeline.style.display = "block";
+
+  let item = pipeline.querySelector(`[data-agent="${agentName}"]`);
+  if (!item) {
+    item = document.createElement("div");
+    item.setAttribute("data-agent", agentName);
+    pipeline.appendChild(item);
+  }
+
+  item.className = `agent-step agent-step--${status}`;
+
+  if (status === "running") {
+    item.innerHTML = `
+      <span class="agent-step__name">${agentName}</span>
+      <span class="agent-step__label">running</span>
+      <span class="agent-step__dots"><span></span><span></span><span></span></span>
+    `;
+  } else if (status === "done") {
+    item.innerHTML = `
+      <span class="agent-step__name">${agentName}</span>
+      <span class="agent-step__label">done</span>
+    `;
+  } else {
+    item.innerHTML = `
+      <span class="agent-step__name">${agentName}</span>
+      <span class="agent-step__label">error${detail ? `: ${detail}` : ""}</span>
+    `;
+  }
+}
+
+/** Limpia el pipeline de agentes */
+export function clearAgentPipeline() {
+  const pipeline = document.getElementById("agentPipeline");
+  if (pipeline) {
+    pipeline.innerHTML = "";
+    pipeline.style.display = "none";
+  }
+}
+
 export function enterGenerationMode() {
   const stepper = document.getElementById("stepper");
   const jsonContainer = document.getElementById("configLoader");

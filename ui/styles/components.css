@@ -157,3 +157,61 @@
 }
 
 
+
+/* ========================== Agent Pipeline ========================== */
+#agentPipeline {
+  padding: 6px 4px 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.agent-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  background: #1e1e1e;
+  border-left: 3px solid #555;
+  transition: border-color 0.3s, background 0.3s;
+}
+
+.agent-step--running {
+  border-left-color: #c792ea;
+  background: #2a1f2e;
+}
+
+.agent-step--done {
+  border-left-color: #4caf50;
+  background: #1a2b1a;
+}
+
+.agent-step--error {
+  border-left-color: #f07178;
+  background: #2a1a1a;
+}
+
+.agent-step__name { font-weight: 600; color: #cdd6f4; }
+.agent-step__label { color: #999; font-size: 11px; }
+
+/* Animated dots for running state */
+.agent-step__dots {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 2px;
+}
+.agent-step__dots span {
+  width: 4px; height: 4px;
+  background: #c792ea;
+  border-radius: 50%;
+  animation: agentDot 1.2s infinite ease-in-out;
+}
+.agent-step__dots span:nth-child(2) { animation-delay: 0.2s; }
+.agent-step__dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes agentDot {
+  0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}

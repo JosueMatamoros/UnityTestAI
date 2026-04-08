@@ -78,8 +78,8 @@ Before generating tests, carefully review the provided project structure and inp
 If you determine that additional class definitions are required to fully understand dependencies, you are strictly forbidden from generating any test code at this stage.
 Respond only in the following format (no explanations, no code, nothing else):
 
-1. Assets/.../.../File.cs
 To generate the tests successfully, I need the following class definitions:
+1. Assets/.../.../File.cs
 2. Assets/.../.../File.cs
 ...
 
