@@ -49,6 +49,7 @@ Lifecycle and Coroutine Handling:
 •	Wait just enough time or pass zero tween duration to observe effects.
 Exception Handling:
 •	Do NOT use try/catch in tests. Use NUnit exception assertions only (Assert.Throws / Assert.That with Throws.*)..
+•   Do not allow tests to fail with opaque or uncontextualized runtime exceptions. Every expected operation in a test must be verified in a way that, if it fails, the failure message clearly identifies what action failed and why. Prefer explicit NUnit assertions with custom failure messages over relying on incidental crashes. If a method under test may throw unexpectedly, the test must fail through an assertion that explains the operation being performed and the likely cause, rather than simply exploding with a raw exception and no test-level context.
 •	Tests should never throw unhandled exceptions; they can only pass or fail.
 Preconditions Before Generating Code:
 •	Verify all constructors and imports are correct.
@@ -77,8 +78,8 @@ Before generating tests, carefully review the provided project structure and inp
 If you determine that additional class definitions are required to fully understand dependencies, you are strictly forbidden from generating any test code at this stage.
 Respond only in the following format (no explanations, no code, nothing else):
 
-To generate the tests successfully, I need the following class definitions:
 1. Assets/.../.../File.cs
+To generate the tests successfully, I need the following class definitions:
 2. Assets/.../.../File.cs
 ...
 
