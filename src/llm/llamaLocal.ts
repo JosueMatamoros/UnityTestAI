@@ -1,50 +1,27 @@
+import { generateText } from "ai";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { ChatMessage } from "./sessionManager";
 
-/**
- * Envía un historial de mensajes a un modelo LLaMA local vía Ollama
- * y devuelve la respuesta generada.
- *
- * @async
- * @function generateWithLocalLlamaChat
- * @param {ChatMessage[]} messages - Lista de mensajes con role y content.
- * @param {string} model - Nombre del modelo (por defecto llama3).
- * @returns {Promise<string>} Respuesta generada o mensaje de error.
- */
-export async function generateWithLocalLlamaChat(
+const ollama = createOpenAICompatible({
+  name: "ollama",
+  baseURL: "http://localhost:11434/v1",
+});
+
+export async function generateWithOllama(
   messages: ChatMessage[],
   model: string = "qwen2.5:14b"
 ): Promise<string> {
   try {
-    const response = await fetch("http://localhost:11434/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    const { text } = await generateText({
+      model: ollama.chatModel(model),
+      messages,
+      temperature: 0,
+      providerOptions: {
+        ollama: { options: { num_ctx: 8192 } },
       },
-      body: JSON.stringify({
-        model,
-        messages: messages.map(m => ({
-          role:
-            m.role === "user"
-              ? "user"
-              : m.role === "assistant"
-              ? "assistant"
-              : "system",
-          content: m.content,
-        })),
-        temperature: 0,
-        options: {
-          num_ctx: 8192,
-        },
-      }),
     });
-
-    if (!response.ok) {
-      throw new Error(`${response.status} ${response.statusText}`);
-    }
-
-    const data: any = await response.json();
-    return data.choices?.[0]?.message?.content ?? "No hubo respuesta.";
+    return text;
   } catch (err: any) {
-    return `Error al generar: ${err.message || err}`;
+    return `Error al generar (Ollama): ${err.message || err}`;
   }
 }

@@ -28,8 +28,7 @@
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "lint": "eslint src",
-    "test": "vscode-test",
-    "test:deps-agent": "npx tsx src/agents/test-dependency-resolver.ts"
+    "test": "vscode-test"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
@@ -48,9 +47,10 @@
     "webpack-cli": "^6.0.1"
   },
   "dependencies": {
-    "@mastra/core": "^0.24.9",
+    "@ai-sdk/openai": "^3.0.52",
+    "@ai-sdk/openai-compatible": "^2.0.41",
+    "ai": "^6.0.154",
     "dotenv": "^17.2.1",
-    "ollama-ai-provider-v2": "^3.5.0",
     "zod": "^3.25.76"
   }
 }
