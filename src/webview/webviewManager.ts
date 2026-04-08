@@ -122,20 +122,6 @@ function saveResult(
   }
 }
 
-function saveFirstPrompt(prompt: string) {
-  // Ruta a la carpeta Downloads del usuario
-  const downloadsPath = path.join(require("os").homedir(), "Downloads");
-
-  // Crear carpeta Downloads si no existe (por si alguien vive al límite)
-  if (!fs.existsSync(downloadsPath)) {
-    fs.mkdirSync(downloadsPath, { recursive: true });
-  }
-
-  const filePath = path.join(downloadsPath, "primerPrompt.txt");
-
-  fs.writeFileSync(filePath, prompt, "utf8");
-  console.log(`Prompt inicial guardado en: ${filePath}`);
-}
 
 /**
  * Maneja el flujo cuando el resultado inicial del modelo incluye dependencias adicionales.
@@ -203,8 +189,6 @@ async function handleGenerate(
   try {
     const projectTree = getFilteredAssetsTree();
     const prompt = buildPrompt(methodName, className, code, projectTree);
-    saveFirstPrompt(prompt);
-
     const handler = modelHandlers[model];
     if (!handler) throw new Error(`Modelo no válido: ${model}`);
 
