@@ -38,3 +38,21 @@ export function buildPrompt(
   });
 }
 
+/**
+ * Builds the dependency-resolver prompt (dependencyResolverPrompt.txt).
+ * Lightweight prompt focused only on identifying missing class definitions.
+ */
+export function buildDependencyResolverPrompt(
+  methodName: string,
+  className: string,
+  code: string,
+  projectTree: string
+): string {
+  return replacePlaceholders(loadTemplate("dependencyResolverPrompt.txt"), {
+    "<method-name>": methodName,
+    "<class-name>":  className,
+    "{code}":        code,
+    "${projectTree}": projectTree || "(Project structure not available)",
+  });
+}
+

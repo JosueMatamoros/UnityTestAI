@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { z } from "zod";
-import { buildPrompt } from "../prompts/promptBuilder";
+import { buildDependencyResolverPrompt } from "../prompts/promptBuilder";
 
 // ── Output schema ──────────────────────────────────────────────────────────────
 
@@ -10,6 +10,10 @@ export const dependencyOutputSchema = z.discriminatedUnion("status", [
   z.object({
     status: z.literal("MISSING_DEPENDENCIES"),
     files: z.array(z.string()),
+  }),
+  z.object({
+    status: z.literal("ERROR"),
+    message: z.string(),
   }),
 ]);
 
@@ -25,55 +29,58 @@ export interface DependencyResolverInput {
   workspaceRoot: string;
 }
 
-// ── Trigger phrase (must match basePrompt.txt exactly) ─────────────────────────
-
-const DEPENDENCY_TRIGGER =
-  "To generate the tests successfully, I need the following class definitions:";
-
 // ── Main function ──────────────────────────────────────────────────────────────
 
 /**
- * Sends the base prompt to the selected LLM and determines whether external
- * class definitions are required before test generation can proceed.
+ * Sends the dependency-resolver prompt to the LLM and parses the strict JSON
+ * response to determine whether external class definitions are needed.
  *
- * @param input       - Code, project tree, class/method names, workspace root.
- * @param llmHandler  - The selected model's call function (same as in webviewManager).
+ * Saves two files per run:
+ *  - dependency-resolver-output.txt  → raw LLM response (for debugging)
+ *  - dependency-resolver-output.json → parsed/validated JSON (for the next agent)
  */
 export async function runDependencyResolver(
   input: DependencyResolverInput,
   llmHandler: (prompt: string) => Promise<string>
 ): Promise<DependencyResolverOutput> {
-  const prompt = buildPrompt(
+  const prompt = buildDependencyResolverPrompt(
     input.methodName,
     input.className,
     input.code,
     input.projectTree
   );
 
-  const raw = await llmHandler(prompt);
-
-  // Save raw response — same base name as the JSON output, overwrites each run
+  // ── Save the prompt being sent (for debugging) ─────────────────────────────
   const dumpDir = path.join(input.workspaceRoot, "AgentOutputs", "dependency-resolver");
   fs.mkdirSync(dumpDir, { recursive: true });
+  fs.writeFileSync(path.join(dumpDir, "dependency-resolver-prompt.txt"), prompt, "utf8");
+
+  const raw = await llmHandler(prompt);
+
+  // ── Save raw LLM response (txt) ────────────────────────────────────────────
   fs.writeFileSync(path.join(dumpDir, "dependency-resolver-output.txt"), raw, "utf8");
 
-  // Strip markdown fences if present
+  // ── Parse JSON from response ───────────────────────────────────────────────
+  // Strip markdown fences if the LLM wrapped the JSON in ```json ... ```
   const clean = raw.trim().replace(/^```[a-z]*\s*/i, "").replace(/```$/, "").trim();
 
-  // If the LLM didn't ask for more files → everything is available
-  if (!clean.includes(DEPENDENCY_TRIGGER)) {
-    return { status: "READY" };
+  let parsed: DependencyResolverOutput;
+  try {
+    const json = JSON.parse(clean);
+    parsed = dependencyOutputSchema.parse(json);
+  } catch (err: any) {
+    parsed = {
+      status: "ERROR",
+      message: `Failed to parse LLM response as valid JSON: ${err.message}`,
+    };
   }
 
-  // Extract .cs file paths from the response
-  const files: string[] = [];
-  for (const match of clean.matchAll(/(?:Assets\/)?[^\s,]+\.cs/g)) {
-    const raw = match[0];
-    const normalized = raw.startsWith("Assets/") ? raw : `Assets/${raw}`;
-    if (!files.includes(normalized)) {
-      files.push(normalized);
-    }
-  }
+  // ── Save validated JSON (for the next agent) ──────────────────────────────
+  fs.writeFileSync(
+    path.join(dumpDir, "dependency-resolver-output.json"),
+    JSON.stringify(parsed, null, 2),
+    "utf8"
+  );
 
-  return { status: "MISSING_DEPENDENCIES", files };
+  return parsed;
 }
