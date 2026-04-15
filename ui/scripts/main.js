@@ -12,6 +12,7 @@ import {
   resetUI,
   updateAgentStatus,
   clearAgentPipeline,
+  showDependencyFilesList,
 } from "./managers/uiManager.js";
 import { initChat, appendChatMessage } from "./managers/chatManager.js";
 import "../styles/main.css";
@@ -158,6 +159,10 @@ window.addEventListener("message", (event) => {
 
     case "clearPipeline":
       clearAgentPipeline();
+      break;
+
+    case "dependencyFiles":
+      showDependencyFilesList(message.files);
       break;
 
     case "agentError": {

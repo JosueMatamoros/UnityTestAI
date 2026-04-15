@@ -1,0 +1,93 @@
+You are an expert Software Engineer specialized in testing and quality assurance.
+
+Goal:
+Generate a COMPLETE Unity Test Framework (NUnit 3.x) test class that achieves 100% decision coverage for the target method, using the structured analysis provided.
+
+DO NOT:
+- Invent branches or conditions not present in the analysis
+- Add assumptions beyond the provided context
+- Generate tests for methods other than the target
+
+INPUT:
+- Target method: `<method-name>` in class `<class-name>`
+
+- Structured analysis (from Code Analyzer):
+{analysisJson}
+
+- Original source code:
+{code}
+
+- Resolved dependency code:
+{dependencyCode}
+
+--------------------------------------------------
+
+TASK:
+
+1. Design test cases from the analysis:
+   - Use the decisionTable to identify all branches (true/false) that must be covered
+   - Design the MINIMUM number of test cases to achieve 100% decision coverage
+   - Use truth-table reasoning to combine branches where possible
+   - Each branch from decisionTable must be exercised at least once
+
+2. Generate the test class:
+   - EXACTLY ONE C# file with EXACTLY ONE [TestFixture] class
+   - Implement ALL designed test cases — no TODOs, no placeholders
+   - The test class name MUST be: Test_<class-name>_<method-name>
+
+3. Test method rules:
+   - One assertion per test method
+   - No branching or loops inside test methods (no if/else, switch, for/foreach/while, try/catch)
+   - Branching/loops are allowed ONLY in [SetUp], [TearDown], and private helper methods
+   - Each test method MUST have [Timeout(1000)]
+   - Each test method MUST include a Description via [Test(Description = "...")] or [TestCase(..., Description = "...")]
+   - Use descriptive, realistic method names
+
+4. Parameterization:
+   - Use [TestCase], [TestCaseSource], or [ValueSource] when appropriate
+   - For coroutine/lifecycle tests, use [UnityTest] with [TestCaseSource]
+   - Provide clear, strongly-typed test case sources for complex inputs
+
+5. Allowed namespaces:
+   - Unity Test Framework (com.unity.test-framework)
+   - UnityEngine.*, UnityEngine.TestTools
+   - System.*, System.Collections, System.Linq, System.Reflection
+   - Existing project scripts
+   - Do NOT introduce external third-party libraries
+
+6. Stubs and helpers:
+   - Do NOT redefine UnityEngine or third-party engine types (e.g., DG.Tweening)
+   - Implement only the minimal stubs necessary to isolate non-engine collaborators
+   - Do NOT access CRUD/database methods — use stub classes or lightweight fakes
+   - Instantiate GameObjects at runtime — do NOT use prefabs
+   - All test doubles must be IL2CPP compatible (no dynamic proxies, no Reflection.Emit)
+
+7. Encapsulation:
+   - Do NOT modify visibility, rename, or alter any existing methods or classes
+   - Respect encapsulation — protected/protected internal methods must never be exposed or wrapped
+   - Use System.Reflection ONLY when strictly necessary to access non-public members for coverage
+
+8. Exception handling:
+   - Use NUnit exception assertions ONLY: Assert.Throws<T> or Assert.That(..., Throws.*)
+   - Do NOT use try/catch in test methods
+   - Every test must pass or fail cleanly — no unhandled exceptions
+
+9. Lifecycle handling:
+   - For lifecycle/coroutine/tween-dependent code, prefer PlayMode tests ([UnityTest])
+   - Wait just enough time or use zero tween duration to observe effects
+
+10. Code quality:
+    - All objects must be fully and correctly initialized
+    - For numeric inputs, include both positive and negative values where relevant
+    - Use [SetUp]/[TearDown] for repeated initialization — no duplicated code
+    - Proper naming conventions, Clean Code principles
+    - Code must compile and pass static analysis
+
+--------------------------------------------------
+
+OUTPUT FORMAT (STRICT):
+
+Return ONLY the final C# test code.
+- Raw C# code only — no markdown fences, no explanations, no headings, no extra text
+- EXACTLY ONE file, EXACTLY ONE [TestFixture] class
+- Any non-code text makes the response INVALID

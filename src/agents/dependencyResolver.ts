@@ -64,9 +64,16 @@ export async function runDependencyResolver(
   // Strip markdown fences if the LLM wrapped the JSON in ```json ... ```
   const clean = raw.trim().replace(/^```[a-z]*\s*/i, "").replace(/```$/, "").trim();
 
+  // Extract the first JSON object from the response — local models (Ollama)
+  // often append extra text after the closing brace.
+  const jsonMatch = clean.match(/\{[\s\S]*\}/);
+
   let parsed: DependencyResolverOutput;
   try {
-    const json = JSON.parse(clean);
+    if (!jsonMatch) {
+      throw new Error("No JSON object found in LLM response");
+    }
+    const json = JSON.parse(jsonMatch[0]);
     parsed = dependencyOutputSchema.parse(json);
   } catch (err: any) {
     parsed = {

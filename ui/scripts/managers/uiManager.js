@@ -100,6 +100,36 @@ export function clearAgentPipeline() {
   }
 }
 
+/**
+ * Shows resolved dependency file paths as sub-items under the last agent step.
+ * No title — just the file list appended directly.
+ * @param {{ path: string, found: boolean }[]} files
+ */
+export function showDependencyFilesList(files) {
+  const pipeline = document.getElementById("agentPipeline");
+  if (!pipeline || !files.length) return;
+
+  // Find the last agent step (Code Analyzer) and append under it
+  const steps = pipeline.querySelectorAll(".agent-step");
+  const lastStep = steps[steps.length - 1];
+  if (!lastStep) return;
+
+  const list = document.createElement("div");
+  list.className = "agent-dep-files";
+
+  for (const f of files) {
+    const row = document.createElement("div");
+    row.className = f.found
+      ? "agent-dep-files__item agent-dep-files__item--found"
+      : "agent-dep-files__item agent-dep-files__item--missing";
+    row.textContent = `${f.found ? "\u2713" : "\u2717"} ${f.path}`;
+    list.appendChild(row);
+  }
+
+  // Insert right after the last agent step
+  lastStep.after(list);
+}
+
 export function enterGenerationMode() {
   const stepper = document.getElementById("stepper");
   const jsonContainer = document.getElementById("configLoader");

@@ -56,3 +56,41 @@ export function buildDependencyResolverPrompt(
   });
 }
 
+/**
+ * Builds the code-analyzer prompt (codeAnalyzerPrompt.txt).
+ * Transforms raw code + resolved dependencies into a structured representation.
+ */
+export function buildCodeAnalyzerPrompt(
+  methodName: string,
+  className: string,
+  code: string,
+  dependencyCode: string
+): string {
+  return replacePlaceholders(loadTemplate("codeAnalyzerPrompt.txt"), {
+    "<method-name>":   methodName,
+    "<class-name>":    className,
+    "{code}":          code,
+    "{dependencyCode}": dependencyCode || "(No dependencies required)",
+  });
+}
+
+/**
+ * Builds the test-generator prompt (testGeneratorPrompt.txt).
+ * Generates the final C# test class from structured analysis + source code.
+ */
+export function buildTestGeneratorPrompt(
+  methodName: string,
+  className: string,
+  code: string,
+  dependencyCode: string,
+  analysisJson: string
+): string {
+  return replacePlaceholders(loadTemplate("testGeneratorPrompt.txt"), {
+    "<method-name>":    methodName,
+    "<class-name>":     className,
+    "{code}":           code,
+    "{dependencyCode}": dependencyCode || "(No dependencies required)",
+    "{analysisJson}":   analysisJson,
+  });
+}
+

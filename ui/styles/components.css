@@ -46,8 +46,8 @@
   border: none;
   height: 40px;
   border-radius: 8px;
-  padding: 0 12px;             
-  display: inline-block;       
+  padding: 0 12px;
+  display: inline-block;
   font-size: 14px;
   cursor: pointer;
   outline: none;
@@ -160,17 +160,17 @@
 
 /* ========================== Agent Pipeline ========================== */
 #agentPipeline {
-  padding: 6px 4px 2px;
+  padding: 10px 4px 6px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 20px;
 }
 
 .agent-step {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
+  padding: 8px 10px;
   border-radius: 6px;
   font-size: 12px;
   background: #1e1e1e;
@@ -214,4 +214,27 @@
 @keyframes agentDot {
   0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
   40% { opacity: 1; transform: scale(1); }
+}
+
+/* ========================== Dependency Files List ========================== */
+.agent-dep-files {
+  margin-top: -4px;
+  margin-left: 16px;
+  padding: 4px 0 2px;
+  border-left: 2px solid #333;
+  padding-left: 10px;
+}
+
+.agent-dep-files__item {
+  padding: 1px 0;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.agent-dep-files__item--found {
+  color: #4caf50;
+}
+
+.agent-dep-files__item--missing {
+  color: #f07178;
 }
