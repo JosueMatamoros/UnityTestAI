@@ -13,6 +13,7 @@ import {
   updateAgentStatus,
   clearAgentPipeline,
   showDependencyFilesList,
+  showContextBuilderSlices,
 } from "./managers/uiManager.js";
 import { initChat, appendChatMessage } from "./managers/chatManager.js";
 import "../styles/main.css";
@@ -163,6 +164,10 @@ window.addEventListener("message", (event) => {
 
     case "dependencyFiles":
       showDependencyFilesList(message.files);
+      break;
+
+    case "contextBuilderSlices":
+      showContextBuilderSlices(message.slices);
       break;
 
     case "agentError": {

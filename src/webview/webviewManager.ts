@@ -7,9 +7,10 @@ import { generateWithChatGPT, generateWithOllama } from "../llm";
 import { checkSymbols } from "../utils/codeValidation";
 import { saveUnityTest } from "../utils/testSaver";
 import { getFilteredAssetsTree } from "../utils/getFilteredAssetsTree";
+import { runMethodSlicer } from "../agents/methodSlicer";
 import { runDependencyResolver } from "../agents/dependencyResolver";
-import { runCodeAnalyzer, readDependencyFiles, type DependencyFileResult } from "../agents/codeAnalyzer";
-import { runTestGenerator } from "../agents/testGenerator";
+import { runContextBuilder } from "../agents/contextBuilder";
+import { readDependencyFiles, type DependencyFileResult } from "../agents/codeAnalyzer";
 import { saveAgentOutput } from "../agents/agentOutputSaver";
 
 const sessionsByPanel = new WeakMap<vscode.WebviewPanel, ChatSession>();
@@ -84,41 +85,49 @@ async function handleGenerate(
     const handler = modelHandlers[model];
     if (!handler) throw new Error(`Modelo no válido: ${model}`);
 
+    // ── Step 0: Method Slicer ──────────────────────────────────────────────
+    const slicerAgent = "Method Slicer";
+    notifyAgent(panel, slicerAgent, "running");
+    const slicerResult = await runMethodSlicer(
+      { code, className, methodName, workspaceRoot },
+      (prompt) => handler(prompt, panel, subModel ?? undefined)
+    );
+    saveAgentOutput("method-slicer", slicerResult);
+
+    if (slicerResult.status === "ERROR") {
+      notifyAgent(panel, slicerAgent, "error", slicerResult.message);
+      throw new Error(`Method Slicer failed: ${slicerResult.message}`);
+    }
+    notifyAgent(panel, slicerAgent, "done");
+
+    const codeSlice = slicerResult.codeSlice.join("\n");
+
     // ── Step 1: Dependency Resolver ──────────────────────────────────────────
     const depAgent = "Dependency Resolver";
     notifyAgent(panel, depAgent, "running");
     const depResult = await runDependencyResolver(
-      { code, projectTree, className, methodName, workspaceRoot },
+      { codeSlice, projectTree, className, methodName, workspaceRoot },
       (prompt) => handler(prompt, panel, subModel ?? undefined)
     );
     saveAgentOutput("dependency-resolver", depResult);
+
+    if (depResult.status === "ERROR") {
+      notifyAgent(panel, depAgent, "error", depResult.message);
+      throw new Error(`Dependency Resolver failed: ${depResult.message}`);
+    }
     notifyAgent(panel, depAgent, "done");
 
     // ── Read dependency files if needed ─────────────────────────────────────
-    let dependencyCode = "";
+    const depFilePaths: string[] =
+      depResult.status === "MISSING_DEPENDENCIES" ? depResult.files : [];
+
     let resolvedFiles: DependencyFileResult[] = [];
-    if (depResult.status === "MISSING_DEPENDENCIES") {
-      const depRead = readDependencyFiles(depResult.files, workspaceRoot);
-      dependencyCode = depRead.code;
+    if (depFilePaths.length > 0) {
+      const depRead = readDependencyFiles(depFilePaths, workspaceRoot);
       resolvedFiles = depRead.files;
     }
 
-    // ── Step 2: Code Analyzer ───────────────────────────────────────────────
-    const analyzerAgent = "Code Analyzer";
-    notifyAgent(panel, analyzerAgent, "running");
-    const analyzerResult = await runCodeAnalyzer(
-      { code, dependencyCode, className, methodName, workspaceRoot },
-      (prompt) => handler(prompt, panel, subModel ?? undefined)
-    );
-    saveAgentOutput("code-analyzer", analyzerResult);
-
-    if (analyzerResult.status === "ERROR") {
-      notifyAgent(panel, analyzerAgent, "error", analyzerResult.message);
-      throw new Error(`Code Analyzer failed: ${analyzerResult.message}`);
-    }
-    notifyAgent(panel, analyzerAgent, "done");
-
-    // Show resolved dependency file paths under the Code Analyzer step
+    // Show resolved dependency file paths under the Dependency Resolver step
     if (resolvedFiles.length > 0) {
       panel.webview.postMessage({
         command: "dependencyFiles",
@@ -126,32 +135,29 @@ async function handleGenerate(
       });
     }
 
-    // ── Step 3: Test Generator ──────────────────────────────────────────────
-    const generatorAgent = "Test Generator";
-    notifyAgent(panel, generatorAgent, "running");
-    const generatorResult = await runTestGenerator(
-      {
-        code,
-        dependencyCode,
-        analysisResult: analyzerResult,
-        className,
-        methodName,
-        workspaceRoot,
-        model,
-      },
+    // ── Step 2: Context Builder ───────────────────────────────────────────────
+    const ctxAgent = "Context Builder";
+    notifyAgent(panel, ctxAgent, "running");
+    const ctxResult = await runContextBuilder(
+      { codeSlice, dependencyFiles: depFilePaths, className, methodName, workspaceRoot },
       (prompt) => handler(prompt, panel, subModel ?? undefined)
     );
+    saveAgentOutput("context-builder", ctxResult);
 
-    if (generatorResult.status === "ERROR") {
-      notifyAgent(panel, generatorAgent, "error", generatorResult.message);
-      throw new Error(`Test Generator failed: ${generatorResult.message}`);
+    if (ctxResult.status === "ERROR") {
+      notifyAgent(panel, ctxAgent, "error", ctxResult.message);
+      throw new Error(`Context Builder failed: ${ctxResult.message}`);
+    }
+    notifyAgent(panel, ctxAgent, "done");
+
+    if (ctxResult.dependencySlices.length > 0) {
+      panel.webview.postMessage({
+        command: "contextBuilderSlices",
+        slices: ctxResult.dependencySlices.map((s) => ({ filePath: s.filePath })),
+      });
     }
 
-    notifyAgent(panel, generatorAgent, "done", generatorResult.savedPath);
-    panel.webview.postMessage({
-      command: "showResult",
-      result: generatorResult.testCode,
-    });
+    // ── TODO: Agent 3 (Code Analyzer) and Agent 4 (Test Generator) ──────────
 
   } catch (err: any) {
     panel.webview.postMessage({ command: "agentError", message: err.message });

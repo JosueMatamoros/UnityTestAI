@@ -130,6 +130,30 @@ export function showDependencyFilesList(files) {
   lastStep.after(list);
 }
 
+/**
+ * Shows the sliced dependency file paths under the Context Builder agent step.
+ * @param {{ filePath: string }[]} slices
+ */
+export function showContextBuilderSlices(slices) {
+  const pipeline = document.getElementById("agentPipeline");
+  if (!pipeline || !slices.length) return;
+
+  const ctxStep = pipeline.querySelector('[data-agent="Context Builder"]');
+  if (!ctxStep) return;
+
+  const list = document.createElement("div");
+  list.className = "agent-dep-files";
+
+  for (const s of slices) {
+    const row = document.createElement("div");
+    row.className = "agent-dep-files__item agent-dep-files__item--found";
+    row.textContent = `✓ ${s.filePath}`;
+    list.appendChild(row);
+  }
+
+  ctxStep.after(list);
+}
+
 export function enterGenerationMode() {
   const stepper = document.getElementById("stepper");
   const jsonContainer = document.getElementById("configLoader");

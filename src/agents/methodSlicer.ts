@@ -1,19 +1,14 @@
 import * as fs from "fs";
 import * as path from "path";
 import { z } from "zod";
-import { buildDependencyResolverPrompt } from "../prompts/promptBuilder";
+import { buildMethodSlicerPrompt } from "../prompts/promptBuilder";
 
 // ── Output schema ──────────────────────────────────────────────────────────────
 
-export const dependencyOutputSchema = z.discriminatedUnion("status", [
+export const methodSlicerOutputSchema = z.discriminatedUnion("status", [
   z.object({
     status: z.literal("READY"),
-    codeSlice: z.string(),
-  }),
-  z.object({
-    status: z.literal("MISSING_DEPENDENCIES"),
-    files: z.array(z.string()),
-    codeSlice: z.string(),
+    codeSlice: z.array(z.string()),
   }),
   z.object({
     status: z.literal("ERROR"),
@@ -21,13 +16,12 @@ export const dependencyOutputSchema = z.discriminatedUnion("status", [
   }),
 ]);
 
-export type DependencyResolverOutput = z.infer<typeof dependencyOutputSchema>;
+export type MethodSlicerOutput = z.infer<typeof methodSlicerOutputSchema>;
 
 // ── Input ──────────────────────────────────────────────────────────────────────
 
-export interface DependencyResolverInput {
-  codeSlice: string;
-  projectTree: string;
+export interface MethodSlicerInput {
+  code: string;
   className: string;
   methodName: string;
   workspaceRoot: string;
@@ -36,41 +30,44 @@ export interface DependencyResolverInput {
 // ── Main function ──────────────────────────────────────────────────────────────
 
 /**
- * Agent 1 — Dependency Resolver
+ * Agent 0 — Method Slicer
  *
- * Receives the code slice from Agent 0 and the project tree.
- * Identifies external project files needed to understand the target method.
- * Echoes back the codeSlice for traceability.
+ * Receives the full source file and extracts a minimal code slice
+ * containing only the target method and its directly referenced members.
+ *
+ * Saves:
+ *  - method-slicer-prompt.txt    → prompt sent to LLM
+ *  - method-slicer-output.txt    → raw LLM response
+ *  - method-slicer-output.json   → parsed/validated JSON
  */
-export async function runDependencyResolver(
-  input: DependencyResolverInput,
+export async function runMethodSlicer(
+  input: MethodSlicerInput,
   llmHandler: (prompt: string) => Promise<string>
-): Promise<DependencyResolverOutput> {
-  const prompt = buildDependencyResolverPrompt(
+): Promise<MethodSlicerOutput> {
+  const prompt = buildMethodSlicerPrompt(
     input.methodName,
     input.className,
-    input.codeSlice,
-    input.projectTree
+    input.code
   );
 
-  const dumpDir = path.join(input.workspaceRoot, "AgentOutputs", "dependency-resolver");
+  const dumpDir = path.join(input.workspaceRoot, "AgentOutputs", "method-slicer");
   fs.mkdirSync(dumpDir, { recursive: true });
-  fs.writeFileSync(path.join(dumpDir, "dependency-resolver-prompt.txt"), prompt, "utf8");
+  fs.writeFileSync(path.join(dumpDir, "method-slicer-prompt.txt"), prompt, "utf8");
 
   const raw = await llmHandler(prompt);
 
-  fs.writeFileSync(path.join(dumpDir, "dependency-resolver-output.txt"), raw, "utf8");
+  fs.writeFileSync(path.join(dumpDir, "method-slicer-output.txt"), raw, "utf8");
 
   const clean = raw.trim().replace(/^```[a-z]*\s*/i, "").replace(/```$/, "").trim();
   const jsonMatch = clean.match(/\{[\s\S]*\}/);
 
-  let parsed: DependencyResolverOutput;
+  let parsed: MethodSlicerOutput;
   try {
     if (!jsonMatch) {
       throw new Error("No JSON object found in LLM response");
     }
     const json = JSON.parse(jsonMatch[0]);
-    parsed = dependencyOutputSchema.parse(json);
+    parsed = methodSlicerOutputSchema.parse(json);
   } catch (err: any) {
     parsed = {
       status: "ERROR",
@@ -79,7 +76,7 @@ export async function runDependencyResolver(
   }
 
   fs.writeFileSync(
-    path.join(dumpDir, "dependency-resolver-output.json"),
+    path.join(dumpDir, "method-slicer-output.json"),
     JSON.stringify(parsed, null, 2),
     "utf8"
   );
