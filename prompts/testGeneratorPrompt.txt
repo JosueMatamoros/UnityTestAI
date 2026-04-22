@@ -93,13 +93,13 @@ REQUIREMENTS:
        go.SetActive(false);                          // ← prevents Awake/Start from running
        _target = go.AddComponent<TargetClass>();     // ← Awake/Start deferred
        // assign all required fields here
-       // do NOT call go.SetActive(true) unless the tested method explicitly requires it
-   - WHY: MonoBehaviour.Awake() and Start() often access serialized fields (Text, Camera,
-     other components) that are null in test context. Running them causes NullReferenceException
-     in SetUp, which makes ALL tests in the fixture fail before the method under test is reached.
-     Keeping the object inactive avoids this entirely.
-   - If the method under test requires the object to be active (e.g. coroutines, events), enable
-     it after assigning all necessary fields.
+   - ✗ NEVER call go.SetActive(true) — not at the end of SetUp, not anywhere, unless the
+     specific method under test is documented to require an active GameObject (e.g. coroutines).
+   - ✗ NEVER call go.SetActive(true) "just in case" or "to finalize setup".
+   - WHY: MonoBehaviour.Awake() and Start() access serialized fields (Text, Camera, etc.)
+     that are null in test context. Even ONE call to SetActive(true) triggers Awake/Start and
+     causes NullReferenceException in SetUp — ALL tests in the fixture fail immediately.
+     The tested private method does NOT need the object to be active to be invoked via Reflection.
    - For empty-collection tests: create the component with empty arrays (new T[]{})
    - For numeric inputs, include both positive and negative values where relevant
 
