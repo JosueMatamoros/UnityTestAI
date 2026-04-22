@@ -1,14 +1,11 @@
 import * as fs from "fs";
 import * as path from "path";
 import { buildTestGeneratorPrompt } from "../prompts/promptBuilder";
-import type { CodeAnalyzerOutput } from "./codeAnalyzer";
 
 // ── Input ──────────────────────────────────────────────────────────────────────
 
 export interface TestGeneratorInput {
-  code: string;
-  dependencyCode: string;
-  analysisResult: CodeAnalyzerOutput;
+  assembledContext: string;
   className: string;
   methodName: string;
   workspaceRoot: string;
@@ -27,42 +24,40 @@ export interface TestGeneratorOutput {
 // ── Main function ──────────────────────────────────────────────────────────────
 
 /**
- * Sends the test-generator prompt to the LLM and saves the resulting C# test
- * file to the Unity project's Tests/ folder.
+ * Agent 3 — Test Generator
  *
- * Saves three files per run:
- *  - test-generator-prompt.txt    → prompt sent to LLM (debugging)
- *  - test-generator-output.txt    → raw LLM response (debugging)
- *  - The actual .cs test file     → saved in <workspaceRoot>/Tests/
+ * Receives the fully assembled context from the Context Builder and generates
+ * a complete PlayMode NUnit test class with the minimum tests needed for
+ * 100% decision coverage.
+ *
+ * Saves:
+ *  - test-generator-prompt.txt    → prompt sent to LLM
+ *  - test-generator-output.txt    → raw LLM response
+ *  - test-generator-output.cs     → cleaned C# test code
+ *  - <workspaceRoot>/Tests/       → final test file saved to Unity project
  */
 export async function runTestGenerator(
   input: TestGeneratorInput,
   llmHandler: (prompt: string) => Promise<string>
 ): Promise<TestGeneratorOutput> {
-  const analysisJson = JSON.stringify(input.analysisResult, null, 2);
+  const dumpDir = path.join(input.workspaceRoot, "AgentOutputs", "test-generator");
+  fs.mkdirSync(dumpDir, { recursive: true });
 
   const prompt = buildTestGeneratorPrompt(
     input.methodName,
     input.className,
-    input.code,
-    input.dependencyCode,
-    analysisJson
+    input.assembledContext
   );
 
-  // ── Save the prompt being sent (debugging) ────────────────────────────────
-  const dumpDir = path.join(input.workspaceRoot, "AgentOutputs", "test-generator");
-  fs.mkdirSync(dumpDir, { recursive: true });
   fs.writeFileSync(path.join(dumpDir, "test-generator-prompt.txt"), prompt, "utf8");
 
   const raw = await llmHandler(prompt);
 
-  // ── Save raw LLM response (txt) ──────────────────────────────────────────
   fs.writeFileSync(path.join(dumpDir, "test-generator-output.txt"), raw, "utf8");
 
-  // ── Clean the response ───────────────────────────────────────────────────
   let cleanCode = raw.trim().replace(/^```(csharp|cs)?\s*/i, "").replace(/```$/, "").trim();
 
-  // Check if the LLM returned an error JSON instead of code
+  // LLM returned an error JSON instead of code
   if (cleanCode.startsWith("{")) {
     try {
       const json = JSON.parse(cleanCode);
@@ -77,10 +72,8 @@ export async function runTestGenerator(
     }
   }
 
-  // ── Save test file to Tests/ folder ──────────────────────────────────────
-  const testFileName = `UTIA_${input.model}_${input.className}_${input.methodName}`;
+  // ── Save to Tests/ folder ────────────────────────────────────────────────
   const testsDir = path.join(input.workspaceRoot, "Tests");
-
   if (!fs.existsSync(testsDir)) {
     return {
       status: "ERROR",
@@ -88,7 +81,8 @@ export async function runTestGenerator(
     };
   }
 
-  // Replace the test class name in the generated code
+  const testFileName = `UTIA_${input.model}_${input.className}_${input.methodName}`;
+
   cleanCode = cleanCode.replace(
     /public\s+class\s+\w+/,
     `public class ${testFileName}`

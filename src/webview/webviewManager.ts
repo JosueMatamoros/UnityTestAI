@@ -10,6 +10,7 @@ import { getFilteredAssetsTree } from "../utils/getFilteredAssetsTree";
 import { runMethodSlicer } from "../agents/methodSlicer";
 import { runDependencyResolver } from "../agents/dependencyResolver";
 import { runContextBuilder } from "../agents/contextBuilder";
+import { runTestGenerator } from "../agents/testGenerator";
 import { readDependencyFiles, type DependencyFileResult } from "../agents/codeAnalyzer";
 import { saveAgentOutput } from "../agents/agentOutputSaver";
 
@@ -157,7 +158,30 @@ async function handleGenerate(
       });
     }
 
-    // ── TODO: Agent 3 (Code Analyzer) and Agent 4 (Test Generator) ──────────
+    // ── Step 3: Test Generator ────────────────────────────────────────────────
+    const testAgent = "Test Generator";
+    notifyAgent(panel, testAgent, "running");
+    const testResult = await runTestGenerator(
+      {
+        assembledContext: ctxResult.assembledContext,
+        className,
+        methodName,
+        workspaceRoot,
+        model,
+      },
+      (prompt) => handler(prompt, panel, subModel ?? undefined)
+    );
+
+    if (testResult.status === "ERROR") {
+      notifyAgent(panel, testAgent, "error", testResult.message);
+      throw new Error(`Test Generator failed: ${testResult.message}`);
+    }
+    notifyAgent(panel, testAgent, "done");
+
+    panel.webview.postMessage({
+      command: "showResult",
+      result: testResult.testCode ?? "",
+    });
 
   } catch (err: any) {
     panel.webview.postMessage({ command: "agentError", message: err.message });

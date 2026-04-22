@@ -115,21 +115,17 @@ export function buildCodeAnalyzerPrompt(
 
 /**
  * Builds the test-generator prompt (testGeneratorPrompt.txt).
- * Generates the final C# test class from structured analysis + source code.
+ * Agent 3: generates PlayMode NUnit tests from the fully assembled context.
  */
 export function buildTestGeneratorPrompt(
   methodName: string,
   className: string,
-  code: string,
-  dependencyCode: string,
-  analysisJson: string
+  assembledContext: string
 ): string {
   return replacePlaceholders(loadTemplate("testGeneratorPrompt.txt"), {
-    "<method-name>":    methodName,
-    "<class-name>":     className,
-    "{code}":           code,
-    "{dependencyCode}": dependencyCode || "(No dependencies required)",
-    "{analysisJson}":   analysisJson,
+    "<method-name>":      methodName,
+    "<class-name>":       className,
+    "{assembledContext}": assembledContext,
   });
 }
 

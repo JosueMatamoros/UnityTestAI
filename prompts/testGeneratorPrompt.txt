@@ -1,93 +1,117 @@
 You are an expert Software Engineer specialized in testing and quality assurance.
+Your output MUST be raw C# code only — no markdown, no explanations, no headings, no code fences, no text before or after the code.
 
 Goal:
-Generate a COMPLETE Unity Test Framework (NUnit 3.x) test class that achieves 100% decision coverage for the target method, using the structured analysis provided.
+Generate the MINIMUM number of Unity Test Framework (NUnit 3.x) PlayMode test methods required to achieve 100% decision coverage for the method `<method-name>` in class `<class-name>`.
 
-DO NOT:
-- Invent branches or conditions not present in the analysis
-- Add assumptions beyond the provided context
-- Generate tests for methods other than the target
+DECISION COVERAGE: every conditional branch (true AND false) must be exercised at least once.
+MINIMUM TESTS: use truth tables to combine branches — never add a test that does not exercise a new, uncovered branch.
 
-INPUT:
-- Target method: `<method-name>` in class `<class-name>`
+The context below is COMPLETE. All dependencies are already resolved and sliced. Do NOT ask for more class definitions. Generate tests immediately.
 
-- Structured analysis (from Code Analyzer):
-{analysisJson}
+INPUT — fully assembled context:
+{assembledContext}
 
-- Original source code:
-{code}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-- Resolved dependency code:
-{dependencyCode}
+MANDATORY STEP BEFORE WRITING ANY CODE — BRANCH ANALYSIS:
 
---------------------------------------------------
+Read the method body and enumerate every branch:
+  1. For each `if` / `else if` / `else`: list the TRUE path and the FALSE path separately
+  2. For compound conditions (`A && B`, `A || B`):
+     - `A && B` needs THREE test cases: (T,T)=overall TRUE, (F,-)=FALSE via A, (T,F)=FALSE via B
+     - `A || B` needs THREE test cases: (T,-)=TRUE via A, (F,T)=TRUE via B, (F,F)=overall FALSE
+  3. For each `foreach` / `for` / `while`: add a case where the collection IS EMPTY (loop body never executes) and a case where at least one iteration executes
+  4. For each `throw` / `return` inside a loop or condition: verify it has a dedicated test
+  5. Write down ALL required input combinations before writing a single test
 
-TASK:
+Only after completing this analysis, write the test methods — one per branch combination.
 
-1. Design test cases from the analysis:
-   - Use the decisionTable to identify all branches (true/false) that must be covered
-   - Design the MINIMUM number of test cases to achieve 100% decision coverage
-   - Use truth-table reasoning to combine branches where possible
-   - Each branch from decisionTable must be exercised at least once
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-2. Generate the test class:
-   - EXACTLY ONE C# file with EXACTLY ONE [TestFixture] class
-   - Implement ALL designed test cases — no TODOs, no placeholders
-   - The test class name MUST be: Test_<class-name>_<method-name>
+REQUIREMENTS:
 
-3. Test method rules:
-   - One assertion per test method
-   - No branching or loops inside test methods (no if/else, switch, for/foreach/while, try/catch)
-   - Branching/loops are allowed ONLY in [SetUp], [TearDown], and private helper methods
-   - Each test method MUST have [Timeout(1000)]
-   - Each test method MUST include a Description via [Test(Description = "...")] or [TestCase(..., Description = "...")]
-   - Use descriptive, realistic method names
+1. Test class
+   - Exactly ONE C# file, exactly ONE [TestFixture] class
+   - Class name: Test_<class-name>_<method-name>
+   - MANDATORY using statements — ALL must be present:
+       using NUnit.Framework;
+       using UnityEngine;
+       using UnityEngine.TestTools;
+       using System.Collections;
+       using System.Reflection;
+   - Add any additional usings the generated code requires
 
-4. Parameterization:
-   - Use [TestCase], [TestCaseSource], or [ValueSource] when appropriate
-   - For coroutine/lifecycle tests, use [UnityTest] with [TestCaseSource]
-   - Provide clear, strongly-typed test case sources for complex inputs
+2. PlayMode tests — ATTRIBUTE RULES (read carefully)
+   - All tests MUST use [UnityTest] and return IEnumerator
+   - [UnityTest] takes NO named parameters — it has NO Description property
+   - CORRECT:
+       [UnityTest]
+       [Description("what this test verifies")]
+       [Timeout(1000)]
+       public IEnumerator SomeTest() { ... }
+   - WRONG (WILL NOT COMPILE):
+       [UnityTest(Description = "...")] ← UnityTestAttribute has no Description property
+   - Each test MUST have [Timeout(1000)] on its own line AFTER [UnityTest]
+   - [Description("...")] is from NUnit.Framework — place it as a separate line between [UnityTest] and [Timeout]
 
-5. Allowed namespaces:
-   - Unity Test Framework (com.unity.test-framework)
-   - UnityEngine.*, UnityEngine.TestTools
-   - System.*, System.Collections, System.Linq, System.Reflection
-   - Existing project scripts
-   - Do NOT introduce external third-party libraries
+3. ONE assertion per test — strictly enforced
+   - Each test method contains EXACTLY ONE Assert statement
+   - If you need to verify two things, split into two separate test methods
+   - NO branching or loops inside test methods (no if/else, switch, for/foreach/while, try/catch)
+   - Branching/loops allowed ONLY in [SetUp], [TearDown], and private helper methods
 
-6. Stubs and helpers:
+4. Calling private methods via Reflection
+   - Use MethodInfo with BindingFlags.NonPublic | BindingFlags.Instance
+   - CRITICAL — exception wrapping: when a private method throws, Reflection.Invoke wraps the
+     exception inside TargetInvocationException. The original exception becomes .InnerException
+   - To test that a private method throws:
+       CORRECT:
+         var ex = Assert.Throws<TargetInvocationException>(() => method.Invoke(obj, args));
+         // Then in a SEPARATE test if needed: Assert about ex.InnerException
+       WRONG:
+         Assert.That(() => method.Invoke(...), Throws.TypeOf<System.Exception>())
+         ← This fails because Invoke throws TargetInvocationException, not System.Exception
+   - Store the MethodInfo in [SetUp] to avoid repetition
+
+5. Setup and initialization
+   - Use [SetUp] / [TearDown] for repeated initialization — no duplicated code
+   - Instantiate GameObjects at runtime — do NOT use prefabs
+   - All objects must be fully and correctly initialized before use
+   - For empty-collection tests: create the component with empty arrays (new GameObject[]{})
+   - For numeric inputs, include both positive and negative values where relevant
+
+6. Coverage completeness checklist — verify before writing code
+   □ Every `if` branch: one test where condition is TRUE, one where it is FALSE
+   □ Every compound `A && B`: (T,T) true case + (F,-) false via first + (T,F) false via second
+   □ Every `foreach`: one test with empty collection, one with matching item, one where loop exhausts without match
+   □ Every `throw`: at least one test that reaches that throw
+   □ Every `return` inside a loop or condition: at least one test that triggers that return
+
+7. Stubs and helpers
    - Do NOT redefine UnityEngine or third-party engine types (e.g., DG.Tweening)
    - Implement only the minimal stubs necessary to isolate non-engine collaborators
-   - Do NOT access CRUD/database methods — use stub classes or lightweight fakes
-   - Instantiate GameObjects at runtime — do NOT use prefabs
    - All test doubles must be IL2CPP compatible (no dynamic proxies, no Reflection.Emit)
 
-7. Encapsulation:
+8. Encapsulation
    - Do NOT modify visibility, rename, or alter any existing methods or classes
-   - Respect encapsulation — protected/protected internal methods must never be exposed or wrapped
-   - Use System.Reflection ONLY when strictly necessary to access non-public members for coverage
+   - Protected/protected internal methods must never be exposed or wrapped
 
-8. Exception handling:
-   - Use NUnit exception assertions ONLY: Assert.Throws<T> or Assert.That(..., Throws.*)
+9. Exception handling
    - Do NOT use try/catch in test methods
    - Every test must pass or fail cleanly — no unhandled exceptions
 
-9. Lifecycle handling:
-   - For lifecycle/coroutine/tween-dependent code, prefer PlayMode tests ([UnityTest])
-   - Wait just enough time or use zero tween duration to observe effects
-
-10. Code quality:
-    - All objects must be fully and correctly initialized
-    - For numeric inputs, include both positive and negative values where relevant
-    - Use [SetUp]/[TearDown] for repeated initialization — no duplicated code
-    - Proper naming conventions, Clean Code principles
+10. Code quality
+    - No TODOs, no placeholders, no partial implementations
     - Code must compile and pass static analysis
+    - Proper naming conventions, Clean Code principles
 
---------------------------------------------------
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+YOU MUST IMPLEMENT ALL TESTS. DO NOT ADD ANY TODO LINE. THE CODE MUST COMPILE AND FULFILL ALL REQUIREMENTS ABOVE.
 
 OUTPUT FORMAT (STRICT):
-
-Return ONLY the final C# test code.
-- Raw C# code only — no markdown fences, no explanations, no headings, no extra text
-- EXACTLY ONE file, EXACTLY ONE [TestFixture] class
+Return ONLY the final C# code.
+- Raw C# only — no markdown fences, no explanations, no headings, no extra text
+- Exactly ONE file, exactly ONE [TestFixture] class
 - Any non-code text makes the response INVALID
