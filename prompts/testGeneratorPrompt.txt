@@ -46,7 +46,9 @@ REQUIREMENTS:
        using UnityEngine.TestTools;
        using System.Collections;
        using System.Reflection;
-   - Add any additional usings the generated code requires
+   - Add any additional usings the generated code requires, including:
+       using System.Linq;              // if using .Count(), .Any(), .Where(), .ToList(), etc.
+       using System.Collections.Generic; // if using List<T>, IEnumerable<T>, etc.
 
 2. PlayMode tests — ATTRIBUTE RULES (read carefully)
    - All tests MUST use [UnityTest] and return IEnumerator
@@ -88,6 +90,8 @@ REQUIREMENTS:
 5. Setup and initialization — MonoBehaviour lifecycle safety (CRITICAL)
    - Use [SetUp] / [TearDown] for repeated initialization — no duplicated code
    - Instantiate GameObjects at runtime — do NOT use prefabs
+   - FIRST check the class declaration in the context: if the class does NOT extend MonoBehaviour
+     or Component, instantiate it with `new ClassName()` — NEVER use AddComponent in that case.
    - ALWAYS disable the GameObject BEFORE calling AddComponent on a MonoBehaviour:
        var go = new GameObject();
        go.SetActive(false);                          // ← prevents Awake/Start from running
