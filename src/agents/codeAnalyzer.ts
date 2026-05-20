@@ -51,8 +51,7 @@ export type CodeAnalyzerOutput = z.infer<typeof codeAnalyzerOutputSchema>;
 // ── Input ──────────────────────────────────────────────────────────────────────
 
 export interface CodeAnalyzerInput {
-  code: string;
-  dependencyCode: string;
+  assembledContext: string;
   className: string;
   methodName: string;
   workspaceRoot: string;
@@ -126,8 +125,7 @@ export async function runCodeAnalyzer(
   const prompt = buildCodeAnalyzerPrompt(
     input.methodName,
     input.className,
-    input.code,
-    input.dependencyCode
+    input.assembledContext
   );
 
   // ── Save the prompt being sent (debugging) ────────────────────────────────

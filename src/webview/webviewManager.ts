@@ -10,9 +10,13 @@ import { getFilteredAssetsTree } from "../utils/getFilteredAssetsTree";
 import { runMethodSlicer } from "../agents/methodSlicer";
 import { runDependencyResolver } from "../agents/dependencyResolver";
 import { runContextBuilder } from "../agents/contextBuilder";
+import { runContextValidator, runTestValidator } from "../agents/validator";
 import { runTestGenerator } from "../agents/testGenerator";
-import { readDependencyFiles, type DependencyFileResult } from "../agents/codeAnalyzer";
+import { runCodeAnalyzer, readDependencyFiles, type DependencyFileResult, type CodeAnalyzerOutput } from "../agents/codeAnalyzer";
+import { runChatFixer } from "../agents/chatFixer";
 import { saveAgentOutput } from "../agents/agentOutputSaver";
+
+// ── Per-panel state ────────────────────────────────────────────────────────────
 
 const sessionsByPanel = new WeakMap<vscode.WebviewPanel, ChatSession>();
 
@@ -20,6 +24,15 @@ const generationMetaByPanel = new WeakMap<
   vscode.WebviewPanel,
   { className: string; methodName: string; model: string; subModel: string | null }
 >();
+
+type TestContext = {
+  testCode: string;
+  assembledContext: string;
+  savedPath: string | null;
+};
+const testContextByPanel = new WeakMap<vscode.WebviewPanel, TestContext>();
+
+// ── Model handlers ─────────────────────────────────────────────────────────────
 
 const modelHandlers: Record<
   string,
@@ -43,14 +56,7 @@ const modelHandlers: Record<
   },
 };
 
-function saveResult(result: string, className: string, methodName: string, model: string) {
-  if (result && !result.startsWith("Modelo no válido") && !result.toLowerCase().includes("error")) {
-    const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (workspaceFolders?.length) {
-      saveUnityTest(workspaceFolders[0].uri.fsPath, result, className, methodName, model);
-    }
-  }
-}
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
 function notifyAgent(
   panel: vscode.WebviewPanel,
@@ -60,6 +66,45 @@ function notifyAgent(
 ) {
   panel.webview.postMessage({ command: "agentStatus", agent, status, detail });
 }
+
+function formatCodeAnalysis(analysis: CodeAnalyzerOutput): string {
+  if (analysis.status !== "READY") return "";
+
+  const { methodSummary, decisionTable, loops, sideEffects, dependencies } = analysis;
+  const lines: string[] = [];
+
+  const params = methodSummary.inputs.map(i => `${i.type} ${i.name}`).join(", ");
+  lines.push(`Method: ${methodSummary.name}(${params}) → ${methodSummary.output}`);
+
+  if (decisionTable.length > 0) {
+    lines.push("\nDecision Table:");
+    for (const row of decisionTable) {
+      lines.push(`  [${row.branch.toUpperCase()}] ${row.conditions.join(" && ")} → ${row.expectedBehavior}`);
+    }
+  }
+
+  if (loops.length > 0) {
+    lines.push("\nLoops:");
+    for (const loop of loops) {
+      lines.push(`  ${loop.type}(${loop.condition})`);
+    }
+  }
+
+  if (sideEffects.length > 0) {
+    lines.push("\nSide Effects: " + sideEffects.join("; "));
+  }
+
+  if (dependencies.length > 0) {
+    lines.push("\nDependencies:");
+    for (const dep of dependencies) {
+      lines.push(`  ${dep.type} ${dep.name}: [${dep.membersUsed.join(", ")}]`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+// ── Pipeline ───────────────────────────────────────────────────────────────────
 
 async function handleGenerate(
   className: string,
@@ -118,29 +163,35 @@ async function handleGenerate(
     }
     notifyAgent(panel, depAgent, "done");
 
-    // ── Read dependency files if needed ─────────────────────────────────────
+    // ── Read dependency files ───────────────────────────────────────────────
     const depFilePaths: string[] =
       depResult.status === "MISSING_DEPENDENCIES" ? depResult.files : [];
 
     let resolvedFiles: DependencyFileResult[] = [];
+    let resolvedDependencyCode: string | undefined;
+
     if (depFilePaths.length > 0) {
       const depRead = readDependencyFiles(depFilePaths, workspaceRoot);
       resolvedFiles = depRead.files;
+      resolvedDependencyCode = depRead.code;
     }
 
-    // Show resolved dependency file paths under the Dependency Resolver step
     if (resolvedFiles.length > 0) {
-      panel.webview.postMessage({
-        command: "dependencyFiles",
-        files: resolvedFiles,
-      });
+      panel.webview.postMessage({ command: "dependencyFiles", files: resolvedFiles });
     }
 
     // ── Step 2: Context Builder ───────────────────────────────────────────────
     const ctxAgent = "Context Builder";
     notifyAgent(panel, ctxAgent, "running");
     const ctxResult = await runContextBuilder(
-      { codeSlice, dependencyFiles: depFilePaths, className, methodName, workspaceRoot },
+      {
+        codeSlice,
+        dependencyFiles: depFilePaths,
+        resolvedDependencyCode,
+        className,
+        methodName,
+        workspaceRoot,
+      },
       (prompt) => handler(prompt, panel, subModel ?? undefined)
     );
     saveAgentOutput("context-builder", ctxResult);
@@ -158,19 +209,55 @@ async function handleGenerate(
       });
     }
 
+    // ── Step 2.5: Context Validator ───────────────────────────────────────────
+    const ctxValAgent = "Context Validator";
+    notifyAgent(panel, ctxValAgent, "running");
+    const ctxValResult = await runContextValidator(
+      { assembledContext: ctxResult.assembledContext, className, methodName, workspaceRoot },
+      (prompt) => handler(prompt, panel, subModel ?? undefined)
+    );
+    saveAgentOutput("validator-context", ctxValResult);
+
+    if (ctxValResult.status === "ERROR") {
+      notifyAgent(panel, ctxValAgent, "error", ctxValResult.message);
+      throw new Error(`Context Validator failed: ${ctxValResult.message}`);
+    }
+    notifyAgent(
+      panel, ctxValAgent, "done",
+      ctxValResult.status === "FIXED" ? `Corregidos ${ctxValResult.issues.length} problema(s)` : undefined
+    );
+
+    const assembledContext = ctxValResult.output;
+
+    // ── Step 2.7: Code Analyzer ───────────────────────────────────────────────
+    const codeAnalyzerAgent = "Code Analyzer";
+    notifyAgent(panel, codeAnalyzerAgent, "running");
+    const codeAnalyzerResult = await runCodeAnalyzer(
+      { assembledContext, className, methodName, workspaceRoot },
+      (prompt) => handler(prompt, panel, subModel ?? undefined)
+    );
+    saveAgentOutput("code-analyzer", codeAnalyzerResult);
+
+    // Soft failure: log and continue without the pre-computed analysis
+    const codeAnalysis =
+      codeAnalyzerResult.status === "READY"
+        ? formatCodeAnalysis(codeAnalyzerResult)
+        : undefined;
+
+    notifyAgent(
+      panel, codeAnalyzerAgent,
+      codeAnalyzerResult.status === "READY" ? "done" : "error",
+      codeAnalyzerResult.status === "ERROR" ? codeAnalyzerResult.message : undefined
+    );
+
     // ── Step 3: Test Generator ────────────────────────────────────────────────
     const testAgent = "Test Generator";
     notifyAgent(panel, testAgent, "running");
     const testResult = await runTestGenerator(
-      {
-        assembledContext: ctxResult.assembledContext,
-        className,
-        methodName,
-        workspaceRoot,
-        model,
-      },
+      { assembledContext, codeAnalysis, className, methodName, workspaceRoot, model },
       (prompt) => handler(prompt, panel, subModel ?? undefined)
     );
+    saveAgentOutput("test-generator", testResult);
 
     if (testResult.status === "ERROR") {
       notifyAgent(panel, testAgent, "error", testResult.message);
@@ -178,16 +265,50 @@ async function handleGenerate(
     }
     notifyAgent(panel, testAgent, "done");
 
-    panel.webview.postMessage({
-      command: "showResult",
-      result: testResult.testCode ?? "",
+    // ── Step 3.5: Test Validator ──────────────────────────────────────────────
+    const testValAgent = "Test Validator";
+    notifyAgent(panel, testValAgent, "running");
+    const testValResult = await runTestValidator(
+      { testCode: testResult.testCode, assembledContext, className, methodName, workspaceRoot },
+      (prompt) => handler(prompt, panel, subModel ?? undefined)
+    );
+    saveAgentOutput("validator-test", testValResult);
+
+    let finalTestCode = testResult.testCode;
+
+    if (testValResult.status === "ERROR") {
+      // Soft failure: surface the error but keep the original generated code
+      notifyAgent(panel, testValAgent, "error", testValResult.message);
+    } else {
+      if (testValResult.status === "FIXED" && testResult.savedPath) {
+        const testFileName = `UTIA_${model}_${className}_${methodName}`;
+        finalTestCode = testValResult.output.replace(
+          /public\s+class\s+\w+/,
+          `public class ${testFileName}`
+        );
+        fs.writeFileSync(testResult.savedPath, finalTestCode, "utf8");
+        notifyAgent(panel, testValAgent, "done", `Corregidos ${testValResult.issues.length} problema(s)`);
+      } else {
+        notifyAgent(panel, testValAgent, "done");
+      }
+    }
+
+    // Store test context for ChatFixer
+    testContextByPanel.set(panel, {
+      testCode: finalTestCode,
+      assembledContext,
+      savedPath: testResult.savedPath,
     });
+
+    panel.webview.postMessage({ command: "showResult", result: finalTestCode });
 
   } catch (err: any) {
     panel.webview.postMessage({ command: "agentError", message: err.message });
     vscode.window.showErrorMessage("Error al generar: " + err.message);
   }
 }
+
+// ── Webview panel ──────────────────────────────────────────────────────────────
 
 export async function createWebviewPanel(context: vscode.ExtensionContext, code: string) {
   const panel = vscode.window.createWebviewPanel(
@@ -277,21 +398,59 @@ export async function createWebviewPanel(context: vscode.ExtensionContext, code:
       }
 
       case "chatMessage": {
-        const session = sessionsByPanel.get(panel);
-        if (!session) { vscode.window.showErrorMessage("No hay sesión de chat activa."); return; }
-
         const text = String(message.text || "").trim();
         if (!text) return;
-
-        session.addUserMessage(text);
 
         const meta = generationMetaByPanel.get(panel);
         if (!meta) { vscode.window.showErrorMessage("No hay configuración de modelo cargada."); return; }
 
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        const workspaceRoot = workspaceFolders?.[0]?.uri.fsPath;
         const handler = modelHandlers[meta.model];
+        const testCtx = testContextByPanel.get(panel);
+
+        if (testCtx && workspaceRoot) {
+          // Route through ChatFixer: the agent has full context of the test + source
+          const fixResult = await runChatFixer(
+            {
+              testCode: testCtx.testCode,
+              assembledContext: testCtx.assembledContext,
+              userMessage: text,
+              className: meta.className,
+              methodName: meta.methodName,
+              workspaceRoot,
+            },
+            (prompt) => handler(prompt, panel, meta.subModel ?? undefined)
+          );
+          saveAgentOutput("chat-fixer", fixResult);
+
+          if (fixResult.status === "FIXED") {
+            testContextByPanel.set(panel, { ...testCtx, testCode: fixResult.correctedCode });
+            if (testCtx.savedPath) {
+              fs.writeFileSync(testCtx.savedPath, fixResult.correctedCode, "utf8");
+            }
+            panel.webview.postMessage({ command: "chatResponse", text: "Código corregido y archivo actualizado." });
+            panel.webview.postMessage({ command: "showResult", result: fixResult.correctedCode });
+          } else if (fixResult.status === "INFO") {
+            panel.webview.postMessage({ command: "chatResponse", text: fixResult.answer });
+          } else {
+            // ERROR from ChatFixer — fall back to plain chat
+            const session = sessionsByPanel.get(panel);
+            if (!session) return;
+            session.addUserMessage(text);
+            const reply = await handler(text, panel, meta.subModel ?? undefined);
+            session.addAssistantMessage(reply);
+            panel.webview.postMessage({ command: "chatResponse", text: reply });
+          }
+          return;
+        }
+
+        // No generated test yet — plain chat
+        const session = sessionsByPanel.get(panel);
+        if (!session) { vscode.window.showErrorMessage("No hay sesión de chat activa."); return; }
+        session.addUserMessage(text);
         const reply = await handler(text, panel, meta.subModel ?? undefined);
         session.addAssistantMessage(reply);
-        saveResult(reply, meta.className, meta.methodName, meta.model);
         panel.webview.postMessage({ command: "chatResponse", text: reply });
         break;
       }

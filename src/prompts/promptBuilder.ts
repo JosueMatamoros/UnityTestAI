@@ -27,23 +27,6 @@ function replacePlaceholders(
 }
 
 /**
- * Builds the full test-generation prompt (basePrompt.txt).
- */
-export function buildPrompt(
-  methodName: string,
-  className: string,
-  code: string,
-  projectTree: string
-): string {
-  return replacePlaceholders(loadTemplate("basePrompt.txt"), {
-    "<method-name>": methodName,
-    "<class-name>":  className,
-    "{code}":        code,
-    "${projectTree}": projectTree || "(Project structure not available)",
-  });
-}
-
-/**
  * Builds the method-slicer prompt (methodSlicerPrompt.txt).
  * Agent 0: extracts a minimal code slice from the full source file.
  */
@@ -97,35 +80,93 @@ export function buildContextBuilderPrompt(
 
 /**
  * Builds the code-analyzer prompt (codeAnalyzerPrompt.txt).
- * Transforms raw code + resolved dependencies into a structured representation.
+ * Agent 2.7: produces a decision table and branch analysis from the assembled context.
  */
 export function buildCodeAnalyzerPrompt(
   methodName: string,
   className: string,
-  code: string,
-  dependencyCode: string
-): string {
-  return replacePlaceholders(loadTemplate("codeAnalyzerPrompt.txt"), {
-    "<method-name>":   methodName,
-    "<class-name>":    className,
-    "{code}":          code,
-    "{dependencyCode}": dependencyCode || "(No dependencies required)",
-  });
-}
-
-/**
- * Builds the test-generator prompt (testGeneratorPrompt.txt).
- * Agent 3: generates PlayMode NUnit tests from the fully assembled context.
- */
-export function buildTestGeneratorPrompt(
-  methodName: string,
-  className: string,
   assembledContext: string
 ): string {
-  return replacePlaceholders(loadTemplate("testGeneratorPrompt.txt"), {
+  return replacePlaceholders(loadTemplate("codeAnalyzerPrompt.txt"), {
     "<method-name>":      methodName,
     "<class-name>":       className,
     "{assembledContext}": assembledContext,
   });
 }
 
+/**
+ * Builds the context-validator prompt (contextValidatorPrompt.txt).
+ * Agent 2.5: verifies the assembled context has everything needed for test generation.
+ */
+export function buildContextValidatorPrompt(
+  methodName: string,
+  className: string,
+  assembledContext: string
+): string {
+  return replacePlaceholders(loadTemplate("contextValidatorPrompt.txt"), {
+    "<method-name>":      methodName,
+    "<class-name>":       className,
+    "{assembledContext}": assembledContext,
+  });
+}
+
+/**
+ * Builds the test-generator prompt (testGeneratorPrompt.txt).
+ * Agent 3: generates PlayMode NUnit tests from the assembled context.
+ * Optionally injects a pre-computed code analysis block.
+ */
+export function buildTestGeneratorPrompt(
+  methodName: string,
+  className: string,
+  assembledContext: string,
+  codeAnalysis?: string
+): string {
+  const analysisBlock = codeAnalysis
+    ? `━━ PRE-COMPUTED CODE ANALYSIS (Agent 2.7) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nVerify this analysis against the context. If correct, use it directly for STEP 0 and STEP 1.\n\n${codeAnalysis}\n\n`
+    : "";
+
+  return replacePlaceholders(loadTemplate("testGeneratorPrompt.txt"), {
+    "<method-name>":      methodName,
+    "<class-name>":       className,
+    "{assembledContext}": assembledContext,
+    "{codeAnalysis}":     analysisBlock,
+  });
+}
+
+/**
+ * Builds the test-validator prompt (testValidatorPrompt.txt).
+ * Agent 3.5: verifies the generated C# NUnit test class for structure and coverage.
+ */
+export function buildTestValidatorPrompt(
+  methodName: string,
+  className: string,
+  assembledContext: string,
+  testCode: string
+): string {
+  return replacePlaceholders(loadTemplate("testValidatorPrompt.txt"), {
+    "<method-name>":      methodName,
+    "<class-name>":       className,
+    "{assembledContext}": assembledContext,
+    "{testCode}":         testCode,
+  });
+}
+
+/**
+ * Builds the chat-fixer prompt (chatFixerPrompt.txt).
+ * Chat Fixer: fixes errors in generated tests or answers questions, given full test + context.
+ */
+export function buildChatFixerPrompt(
+  methodName: string,
+  className: string,
+  assembledContext: string,
+  testCode: string,
+  userMessage: string
+): string {
+  return replacePlaceholders(loadTemplate("chatFixerPrompt.txt"), {
+    "<method-name>":      methodName,
+    "<class-name>":       className,
+    "{assembledContext}": assembledContext,
+    "{testCode}":         testCode,
+    "{userMessage}":      userMessage,
+  });
+}

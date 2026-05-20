@@ -17,11 +17,8 @@ DO NOT:
 INPUT:
 - Target method: `<method-name>` in class `<class-name>`
 
-- Target code:
-{code}
-
-- Resolved dependencies:
-{dependencyCode}
+- Assembled context (target code + resolved dependencies, with section headers):
+{assembledContext}
 
 TASK:
 

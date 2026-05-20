@@ -2,16 +2,6 @@ import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 
-/**
- * Saves the output of any agent as a JSON file inside
- * <workspaceRoot>/AgentOutputs/<agentName>/<className>_<methodName>.json
- *
- * Returns the absolute path of the saved file, or null if no workspace is open.
- */
-/**
- * Saves agent output as <agentName>-output.json
- * Overwrites on every run.
- */
 export function saveAgentOutput(
   agentName: string,
   output: unknown

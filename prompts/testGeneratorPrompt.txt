@@ -16,7 +16,30 @@ INPUT — fully assembled context:
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-MANDATORY STEP BEFORE WRITING ANY CODE — BRANCH ANALYSIS:
+{codeAnalysis}MANDATORY STEPS BEFORE WRITING ANY CODE:
+
+━━ STEP 0 — CLASS INSTANTIATION CHECK (mandatory, do this before anything else) ━━
+
+Find the exact declaration of `<class-name>` in the context. It looks like one of:
+  (a)  public class <class-name>                       ← no inheritance
+  (b)  public class <class-name> : MonoBehaviour       ← Unity component
+  (c)  public class <class-name> : SomeOtherClass      ← check if SomeOtherClass extends MonoBehaviour
+
+DECISION:
+  Declaration has `: MonoBehaviour` / `: Component` / `: Behaviour` anywhere → AddComponent pattern
+  Declaration has NOTHING after the class name, or only non-Unity base classes → new ClassName()
+
+CRITICAL WARNING: A class that uses GameObject as a FIELD TYPE or METHOD PARAMETER is NOT
+necessarily a MonoBehaviour. Only `: MonoBehaviour` in the declaration makes it one.
+  WRONG assumption: "ShapesArray has GameObject[,] fields → must be MonoBehaviour" ← FALSE
+  CORRECT reading:  `public class ShapesArray` (no colon) → plain C# class → new ShapesArray()
+
+Using AddComponent on a plain C# class → CS0311 compile error → tests will not compile.
+Using new on a MonoBehaviour → MissingMethodException at runtime → tests will fail.
+
+Write your answer before continuing: "<class-name> declaration: [copy the exact line] → [new / AddComponent]"
+
+━━ STEP 1 — BRANCH ANALYSIS ━━
 
 Read the method body and enumerate every branch:
   1. For each `if` / `else if` / `else`: list the TRUE path and the FALSE path separately
@@ -40,15 +63,15 @@ REQUIREMENTS:
 1. Test class
    - Exactly ONE C# file, exactly ONE [TestFixture] class
    - Class name: Test_<class-name>_<method-name>
-   - MANDATORY using statements — ALL must be present:
+   - MANDATORY using statements — ALL must be present in every generated file, no exceptions:
        using NUnit.Framework;
        using UnityEngine;
        using UnityEngine.TestTools;
+       using System;
        using System.Collections;
+       using System.Collections.Generic;
+       using System.Linq;
        using System.Reflection;
-   - Add any additional usings the generated code requires, including:
-       using System.Linq;              // if using .Count(), .Any(), .Where(), .ToList(), etc.
-       using System.Collections.Generic; // if using List<T>, IEnumerable<T>, etc.
 
 2. PlayMode tests — ATTRIBUTE RULES (read carefully)
    - All tests MUST use [UnityTest] and return IEnumerator
@@ -64,47 +87,54 @@ REQUIREMENTS:
    - [Description("...")] is from NUnit.Framework — place it as a separate line between [UnityTest] and [Timeout]
 
 3. ONE assertion per test — strictly enforced
-   - Each test method contains EXACTLY ONE Assert statement
-   - If you need to verify two things, split into two separate test methods
+   - Each test method contains EXACTLY ONE Assert statement — count it before writing
+   - Assert.IsNotNull IS an Assert — using it alongside any other Assert gives 2 asserts = INVALID
+   - If you need to verify two things, write two SEPARATE test methods, one Assert each
    - NO branching or loops inside test methods (no if/else, switch, for/foreach/while, try/catch)
    - Branching/loops allowed ONLY in [SetUp], [TearDown], and private helper methods
+   - WRONG:
+       Assert.IsNotNull(result);
+       Assert.IsFalse(((IEnumerable<X>)result).Any()); ← TWO asserts = will be rejected
+   - RIGHT:
+       Assert.IsFalse(((IEnumerable<X>)result).Any()); ← ONE assert = valid
 
-4. Calling private methods via Reflection
-   - Use MethodInfo with BindingFlags.NonPublic | BindingFlags.Instance
-   - CRITICAL — exception wrapping: when a private method throws, Reflection.Invoke wraps the
-     exception inside TargetInvocationException. The original exception becomes .InnerException
-   - To test that a private method throws:
+4. Calling methods via Reflection — GetMethod rules (read carefully)
+
+   ALWAYS use the parameter-types overload of GetMethod:
+       public method:  typeof(ClassName).GetMethod("MethodName", new Type[] { typeof(ParamType) })
+       private method: typeof(ClassName).GetMethod("MethodName", BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(ParamType) }, null)
+
+   WHY: if the class has ANY other method with the same name (overload), using GetMethod without
+   parameter types throws System.Reflection.AmbiguousMatchException at runtime — all tests fail
+   in [SetUp] before a single assertion runs.
+
+   WRONG — will throw AmbiguousMatchException when overloads exist:
+       typeof(ClassName).GetMethod("MethodName")
+       typeof(ClassName).GetMethod("MethodName", BindingFlags.Public | BindingFlags.Instance)
+   CORRECT — always safe:
+       typeof(ClassName).GetMethod("MethodName", new Type[] { typeof(IEnumerable<GameObject>) })
+
+   - Store the MethodInfo in [SetUp] to avoid repetition
+   - CRITICAL — exception wrapping: when a method throws, Reflection.Invoke wraps it inside
+     TargetInvocationException. The original exception becomes .InnerException
+   - To test that a method throws:
        CORRECT:
          var ex = Assert.Throws<TargetInvocationException>(() => method.Invoke(obj, args));
-         // Then in a SEPARATE test if needed: Assert about ex.InnerException
        WRONG:
          Assert.That(() => method.Invoke(...), Throws.TypeOf<System.Exception>())
-         ← This fails because Invoke throws TargetInvocationException, not System.Exception
-   - Store the MethodInfo in [SetUp] to avoid repetition
+         ← Fails because Invoke wraps in TargetInvocationException, not the original type
    - When asserting the return value of method.Invoke():
        CORRECT: Assert.IsNotNull(result);
        WRONG:   Assert.AreEqual(_sut.SomeArray[0], result);
-       ← Do NOT compare by array index; the returned reference is valid but equality checks
-         on UnityEngine objects can fail. Use IsNotNull or IsNull to verify presence/absence.
+       ← Do NOT compare by array index; use IsNotNull or IsNull to verify presence/absence.
 
-5. Setup and initialization — MonoBehaviour lifecycle safety (CRITICAL)
+5. Setup and initialization
+   - Use the instantiation pattern decided in STEP 0 — do not re-evaluate here
    - Use [SetUp] / [TearDown] for repeated initialization — no duplicated code
    - Instantiate GameObjects at runtime — do NOT use prefabs
-   - FIRST check the class declaration in the context: if the class does NOT extend MonoBehaviour
-     or Component, instantiate it with `new ClassName()` — NEVER use AddComponent in that case.
-   - ALWAYS disable the GameObject BEFORE calling AddComponent on a MonoBehaviour:
-       var go = new GameObject();
-       go.SetActive(false);                          // ← prevents Awake/Start from running
-       _target = go.AddComponent<TargetClass>();     // ← Awake/Start deferred
-       // assign all required fields here
-   - ✗ NEVER call go.SetActive(true) — not at the end of SetUp, not anywhere, unless the
-     specific method under test is documented to require an active GameObject (e.g. coroutines).
-   - ✗ NEVER call go.SetActive(true) "just in case" or "to finalize setup".
-   - WHY: MonoBehaviour.Awake() and Start() access serialized fields (Text, Camera, etc.)
-     that are null in test context. Even ONE call to SetActive(true) triggers Awake/Start and
-     causes NullReferenceException in SetUp — ALL tests in the fixture fail immediately.
-     The tested private method does NOT need the object to be active to be invoked via Reflection.
-   - For empty-collection tests: create the component with empty arrays (new T[]{})
+   - When using AddComponent (MonoBehaviour only): ALWAYS call go.SetActive(false) first
+   - ✗ NEVER call go.SetActive(true) anywhere — triggers Awake/Start → NullReferenceException
+   - For empty-collection tests: initialize with empty arrays (new T[]{})
    - For numeric inputs, include both positive and negative values where relevant
 
 6. Coverage completeness checklist — verify before writing code
@@ -133,6 +163,14 @@ REQUIREMENTS:
     - Proper naming conventions, Clean Code principles
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+MANDATORY ASSERT COUNT — execute before writing any code:
+For each test method you are about to write:
+  1. Count every line containing "Assert." in that method's body
+  2. If count ≥ 2 → STOP — split that method into N separate test methods, one Assert each
+  3. Assert.IsNotNull counts as 1 — if you pair it with another Assert you already have 2
+
+This is a hard gate: output with 2+ asserts in any test method will be automatically rejected.
 
 YOU MUST IMPLEMENT ALL TESTS. DO NOT ADD ANY TODO LINE. THE CODE MUST COMPILE AND FULFILL ALL REQUIREMENTS ABOVE.
 

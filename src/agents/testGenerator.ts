@@ -1,24 +1,33 @@
 import * as fs from "fs";
 import * as path from "path";
+import { z } from "zod";
 import { buildTestGeneratorPrompt } from "../prompts/promptBuilder";
+
+// ── Output schema ──────────────────────────────────────────────────────────────
+
+export const testGeneratorOutputSchema = z.discriminatedUnion("status", [
+  z.object({
+    status: z.literal("SUCCESS"),
+    testCode: z.string(),
+    savedPath: z.string(),
+  }),
+  z.object({
+    status: z.literal("ERROR"),
+    message: z.string(),
+  }),
+]);
+
+export type TestGeneratorOutput = z.infer<typeof testGeneratorOutputSchema>;
 
 // ── Input ──────────────────────────────────────────────────────────────────────
 
 export interface TestGeneratorInput {
   assembledContext: string;
+  codeAnalysis?: string;
   className: string;
   methodName: string;
   workspaceRoot: string;
   model: string;
-}
-
-// ── Output ─────────────────────────────────────────────────────────────────────
-
-export interface TestGeneratorOutput {
-  status: "SUCCESS" | "ERROR";
-  testCode?: string;
-  savedPath?: string;
-  message?: string;
 }
 
 // ── Main function ──────────────────────────────────────────────────────────────
@@ -46,7 +55,8 @@ export async function runTestGenerator(
   const prompt = buildTestGeneratorPrompt(
     input.methodName,
     input.className,
-    input.assembledContext
+    input.assembledContext,
+    input.codeAnalysis
   );
 
   fs.writeFileSync(path.join(dumpDir, "test-generator-prompt.txt"), prompt, "utf8");

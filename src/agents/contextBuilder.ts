@@ -31,6 +31,7 @@ export type ContextBuilderOutput = z.infer<typeof contextBuilderOutputSchema>;
 export interface ContextBuilderInput {
   codeSlice: string;
   dependencyFiles: string[];
+  resolvedDependencyCode?: string;
   className: string;
   methodName: string;
   workspaceRoot: string;
@@ -95,10 +96,9 @@ export async function runContextBuilder(
     return result;
   }
 
-  const { code: rawDependencyCode } = readDependencyFiles(
-    input.dependencyFiles,
-    input.workspaceRoot
-  );
+  const rawDependencyCode =
+    input.resolvedDependencyCode ??
+    readDependencyFiles(input.dependencyFiles, input.workspaceRoot).code;
 
   const prompt = buildContextBuilderPrompt(
     input.methodName,
