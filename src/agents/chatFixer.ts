@@ -6,7 +6,11 @@ import { buildChatFixerPrompt } from "../prompts/promptBuilder";
 // ── Output schema ──────────────────────────────────────────────────────────────
 
 export const chatFixerOutputSchema = z.discriminatedUnion("status", [
-  z.object({ status: z.literal("FIXED"), correctedCode: z.string() }),
+  z.object({
+    status: z.literal("FIXED"),
+    correctedCode: z.string(),
+    summary: z.string().optional(),
+  }),
   z.object({ status: z.literal("INFO"),  answer: z.string() }),
   z.object({ status: z.literal("ERROR"), message: z.string() }),
 ]);

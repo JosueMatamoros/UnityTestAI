@@ -39,6 +39,92 @@ Using new on a MonoBehaviour → MissingMethodException at runtime → tests wil
 
 Write your answer before continuing: "<class-name> declaration: [copy the exact line] → [new / AddComponent]"
 
+━━ STEP 0.5 — PRIVATE MEMBER & INITIALIZATION SCAN ━━
+
+This step prevents the most common compile and runtime failures. Execute it completely.
+
+A. ACCESS MODIFIERS — For every field, property, and method the tests need to interact with:
+
+   In C#, a member with NO explicit access modifier is PRIVATE by default.
+   Check each member declaration in the source context:
+
+   Private/protected field → NEVER access as `obj.field` → use FieldInfo:
+     FieldInfo f = typeof(ClassName).GetField("fieldName",
+         BindingFlags.NonPublic | BindingFlags.Instance);
+     f.SetValue(instance, value);
+     var val = f.GetValue(instance);
+
+   Private static field:
+     FieldInfo f = typeof(ClassName).GetField("fieldName",
+         BindingFlags.NonPublic | BindingFlags.Static);
+
+   Private/protected method → NEVER call as `obj.Method()` → use MethodInfo.Invoke:
+     MethodInfo m = typeof(ClassName).GetMethod("MethodName",
+         BindingFlags.NonPublic | BindingFlags.Instance, null,
+         new Type[] { typeof(Param1Type), typeof(Param2Type) }, null);
+     m.Invoke(instance, new object[] { param1, param2 });
+
+   Private nested type (enum/struct/class declared inside the target class):
+     NEVER reference it as `State.Wait` from outside — it is inaccessible
+     Type stateType = typeof(ClassName).GetNestedType("State", BindingFlags.NonPublic);
+     FieldInfo stateField = typeof(ClassName).GetField("state",
+         BindingFlags.NonPublic | BindingFlags.Instance);
+     stateField.SetValue(instance, Enum.Parse(stateType, "Wait"));
+
+   Cache ALL FieldInfo / MethodInfo / Type lookups in [SetUp] private fields — never inline in tests.
+
+B. UNITY MESSAGE METHODS — always private regardless of declaration:
+   Update, FixedUpdate, LateUpdate, Awake, Start, OnEnable, OnDisable, OnDestroy,
+   OnTriggerEnter2D, OnTriggerExit2D, OnCollisionEnter2D, OnCollisionExit2D,
+   OnTriggerEnter, OnTriggerExit, OnCollisionEnter, OnCollisionExit
+
+   WRONG: sut.FixedUpdate();   ← CS1061 compile error
+   CORRECT:
+     MethodInfo fu = typeof(ClassName).GetMethod("FixedUpdate",
+         BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null);
+     fu.Invoke(sut, null);
+
+C. STATIC NESTED ENUMS — read the actual declaration before referencing:
+   If GameManager has `public enum GameState { Init, Game, Dead }` and a static field
+   `public static GameState gameState`, the correct access is:
+     CORRECT: GameManager.gameState = GameManager.GameState.Game;
+     WRONG:   GameManager.gameState = GameManager.Game;    ← CS0117 compile error
+   Rule: Always qualify enum values as `ClassName.EnumTypeName.Value`
+
+D. START/AWAKE FIELDS — fields initialized inside Start() or Awake() are NOT initialized
+   when using go.SetActive(false) + AddComponent, because Start/Awake do NOT run.
+
+   For every field initialized in Start() or Awake() that the target method uses:
+   1. Get its FieldInfo in [SetUp]
+   2. Initialize it via SetValue with a valid test value
+   3. Collections (Queue, List, Stack, Dictionary) → new them and add at least one entry
+      unless the specific test case requires an empty collection
+   4. Component references → AddComponent to the test GameObject instead of FindObjectOfType
+   5. Timer floats (e.g., timeToEndWait, timeToEndScatter) set to Time.time + X in Start →
+      set to float.MaxValue in [SetUp] to prevent unwanted state transitions during tests
+
+   EXAMPLE (generalized):
+     [SetUp]
+     void SetUp() {
+       _go = new GameObject();
+       _go.SetActive(false);
+       _sut = _go.AddComponent<TargetClass>();
+
+       // Initialize Queue that Start() would have filled
+       var queueField = typeof(TargetClass).GetField("items",
+           BindingFlags.NonPublic | BindingFlags.Instance);
+       var q = new Queue<SomeType>();
+       q.Enqueue(someValidItem);
+       queueField.SetValue(_sut, q);
+
+       // Prevent time-based transitions
+       typeof(TargetClass).GetField("timeToEndPhase",
+           BindingFlags.NonPublic | BindingFlags.Instance)
+           ?.SetValue(_sut, float.MaxValue);
+     }
+
+Write down the list of private members and Start/Awake fields before continuing.
+
 ━━ STEP 1 — BRANCH ANALYSIS ━━
 
 Read the method body and enumerate every branch:
@@ -102,17 +188,14 @@ REQUIREMENTS:
 
    ALWAYS use the parameter-types overload of GetMethod:
        public method:  typeof(ClassName).GetMethod("MethodName", new Type[] { typeof(ParamType) })
-       private method: typeof(ClassName).GetMethod("MethodName", BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(ParamType) }, null)
+       private method: typeof(ClassName).GetMethod("MethodName",
+           BindingFlags.NonPublic | BindingFlags.Instance, null,
+           new Type[] { typeof(ParamType) }, null)
+       no-parameter:   typeof(ClassName).GetMethod("MethodName",
+           BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null)
 
    WHY: if the class has ANY other method with the same name (overload), using GetMethod without
-   parameter types throws System.Reflection.AmbiguousMatchException at runtime — all tests fail
-   in [SetUp] before a single assertion runs.
-
-   WRONG — will throw AmbiguousMatchException when overloads exist:
-       typeof(ClassName).GetMethod("MethodName")
-       typeof(ClassName).GetMethod("MethodName", BindingFlags.Public | BindingFlags.Instance)
-   CORRECT — always safe:
-       typeof(ClassName).GetMethod("MethodName", new Type[] { typeof(IEnumerable<GameObject>) })
+   parameter types throws System.Reflection.AmbiguousMatchException at runtime.
 
    - Store the MethodInfo in [SetUp] to avoid repetition
    - CRITICAL — exception wrapping: when a method throws, Reflection.Invoke wraps it inside
@@ -123,10 +206,6 @@ REQUIREMENTS:
        WRONG:
          Assert.That(() => method.Invoke(...), Throws.TypeOf<System.Exception>())
          ← Fails because Invoke wraps in TargetInvocationException, not the original type
-   - When asserting the return value of method.Invoke():
-       CORRECT: Assert.IsNotNull(result);
-       WRONG:   Assert.AreEqual(_sut.SomeArray[0], result);
-       ← Do NOT compare by array index; use IsNotNull or IsNull to verify presence/absence.
 
 5. Setup and initialization
    - Use the instantiation pattern decided in STEP 0 — do not re-evaluate here
@@ -134,8 +213,15 @@ REQUIREMENTS:
    - Instantiate GameObjects at runtime — do NOT use prefabs
    - When using AddComponent (MonoBehaviour only): ALWAYS call go.SetActive(false) first
    - ✗ NEVER call go.SetActive(true) anywhere — triggers Awake/Start → NullReferenceException
-   - For empty-collection tests: initialize with empty arrays (new T[]{})
+   - Initialize ALL Start/Awake fields identified in STEP 0.5 via Reflection
+   - For empty-collection tests: initialize with empty collections in the test, NOT in [SetUp]
    - For numeric inputs, include both positive and negative values where relevant
+   - Add components required by the method under test (e.g., Rigidbody2D, Animator) to the
+     test GameObject before AddComponent<TargetClass>
+
+   STATIC STATE RESET — Always clean up static fields in [TearDown]:
+   - If the method reads or writes static fields (e.g., GameManager.gameState),
+     reset them to their default/initial value in [TearDown] to prevent test pollution
 
 6. Coverage completeness checklist — verify before writing code
    □ Every `if` branch: one test where condition is TRUE, one where it is FALSE
@@ -161,6 +247,13 @@ REQUIREMENTS:
     - No TODOs, no placeholders, no partial implementations
     - Code must compile and pass static analysis
     - Proper naming conventions, Clean Code principles
+
+11. ALL code must be inside the [TestFixture] class — CS0116 prevention
+    The only content allowed OUTSIDE the class is `using` statements.
+    Structure: usings → [TestFixture] → public class Test_... { ALL code here }
+    NEVER place field declarations, methods, or any statement before [TestFixture] or after the closing }.
+    VERIFY before outputting: scan from top to bottom and confirm there is exactly ONE class and
+    zero declarations outside it. A single misplaced field causes CS0116 and the entire file fails.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

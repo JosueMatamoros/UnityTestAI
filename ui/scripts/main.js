@@ -192,6 +192,22 @@ window.addEventListener("message", (event) => {
       showChatUI();
       break;
 
+    case "updateResult": {
+      // Chat Fixer correction — update the code panel WITHOUT clearing the agent pipeline
+      renderResult(message.result, resultContainer, copyBtn);
+      // Flash the result card green to signal the update
+      const card = resultContainer.closest
+        ? resultContainer.closest("[id]")
+        : null;
+      const target = document.getElementById("resultCard") || resultContainer;
+      target.style.transition = "box-shadow 0.3s ease";
+      target.style.boxShadow = "0 0 0 2px #4caf50";
+      setTimeout(() => { target.style.boxShadow = ""; }, 1400);
+      // Scroll the result into view
+      resultContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      break;
+    }
+
     case "showDependencyResult":
       hideLoadingUI();
       renderResult(message.result, resultContainer, copyBtn, true);

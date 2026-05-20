@@ -70,7 +70,7 @@ function notifyAgent(
 function formatCodeAnalysis(analysis: CodeAnalyzerOutput): string {
   if (analysis.status !== "READY") return "";
 
-  const { methodSummary, decisionTable, loops, sideEffects, dependencies } = analysis;
+  const { methodSummary, decisionTable, loops, sideEffects, dependencies, privateMembers, startAwakeFields } = analysis;
   const lines: string[] = [];
 
   const params = methodSummary.inputs.map(i => `${i.type} ${i.name}`).join(", ");
@@ -98,6 +98,25 @@ function formatCodeAnalysis(analysis: CodeAnalyzerOutput): string {
     lines.push("\nDependencies:");
     for (const dep of dependencies) {
       lines.push(`  ${dep.type} ${dep.name}: [${dep.membersUsed.join(", ")}]`);
+    }
+  }
+
+  if (privateMembers && privateMembers.length > 0) {
+    lines.push("\nPrivate Members (require Reflection):");
+    for (const m of privateMembers) {
+      if (m.kind === "nestedType" && m.nestedValues && m.nestedValues.length > 0) {
+        lines.push(`  [${m.kind}] ${m.type} ${m.name} — values: ${m.nestedValues.join(", ")}`);
+      } else {
+        lines.push(`  [${m.kind}] ${m.type} ${m.name}`);
+      }
+    }
+  }
+
+  if (startAwakeFields && startAwakeFields.length > 0) {
+    lines.push("\nFields initialized in Start/Awake (must init via Reflection in SetUp):");
+    for (const f of startAwakeFields) {
+      const note = f.notes ? ` — ${f.notes}` : "";
+      lines.push(`  ${f.type} ${f.name} [${f.initIn}]${note}`);
     }
   }
 
@@ -411,6 +430,7 @@ export async function createWebviewPanel(context: vscode.ExtensionContext, code:
 
         if (testCtx && workspaceRoot) {
           // Route through ChatFixer: the agent has full context of the test + source
+          notifyAgent(panel, "Chat Fixer", "running");
           const fixResult = await runChatFixer(
             {
               testCode: testCtx.testCode,
@@ -429,12 +449,17 @@ export async function createWebviewPanel(context: vscode.ExtensionContext, code:
             if (testCtx.savedPath) {
               fs.writeFileSync(testCtx.savedPath, fixResult.correctedCode, "utf8");
             }
-            panel.webview.postMessage({ command: "chatResponse", text: "Código corregido y archivo actualizado." });
-            panel.webview.postMessage({ command: "showResult", result: fixResult.correctedCode });
+            const summary = fixResult.summary ?? "Correcciones aplicadas";
+            notifyAgent(panel, "Chat Fixer", "done", summary);
+            panel.webview.postMessage({ command: "chatResponse", text: `✓ ${summary}` });
+            // updateResult: updates the code panel without clearing the agent pipeline
+            panel.webview.postMessage({ command: "updateResult", result: fixResult.correctedCode });
           } else if (fixResult.status === "INFO") {
+            notifyAgent(panel, "Chat Fixer", "done");
             panel.webview.postMessage({ command: "chatResponse", text: fixResult.answer });
           } else {
             // ERROR from ChatFixer — fall back to plain chat
+            notifyAgent(panel, "Chat Fixer", "error", fixResult.message);
             const session = sessionsByPanel.get(panel);
             if (!session) return;
             session.addUserMessage(text);

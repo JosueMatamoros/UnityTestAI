@@ -42,11 +42,20 @@ CHECKLIST — verify each point in order:
 
 10. SYNTAX: No obvious compilation errors (unmatched braces, missing semicolons, undeclared variables)
 
+11. STRUCTURE — NO CODE OUTSIDE THE CLASS (CS0116 prevention):
+    All fields, methods, and statements must be INSIDE the [TestFixture] class body.
+    Scan the entire file:
+      - No field declarations before [TestFixture] or after the closing }
+      - No method declarations outside the class
+      - The file structure must be: usings → [TestFixture] → public class → { ... }
+    CS0116 ("A namespace cannot directly contain members") is caused by code outside the class.
+    If any code exists outside the class → move it inside → mark item 11 as FAIL
+
 STRICT RULES:
 - DO NOT add tests unless a branch is genuinely uncovered
 - DO NOT change the class name — preserve exactly whatever class name is already in the code
 - DO NOT add explanations outside the JSON
-- If the code passes ALL ten checklist items, return { "status": "VALID" } immediately
+- If the code passes ALL eleven checklist items, return { "status": "VALID" } immediately
 
 MANDATORY CHECK BEFORE RESPONDING:
 Evaluate each checklist item as PASS or FAIL — item 5 requires an explicit count per method.

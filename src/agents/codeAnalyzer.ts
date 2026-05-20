@@ -27,6 +27,23 @@ const loopSchema = z.object({
   condition: z.string(),
 });
 
+// Describes a private/protected member that tests must access via Reflection
+const privateMemberSchema = z.object({
+  name: z.string(),
+  kind: z.enum(["field", "property", "nestedType", "unityMessage"]),
+  type: z.string(),
+  // For nestedType kind: enum/struct value names
+  nestedValues: z.array(z.string()).optional(),
+});
+
+// Describes a field initialized in Start() or Awake() that tests must init manually
+const startAwakeFieldSchema = z.object({
+  name: z.string(),
+  type: z.string(),
+  initIn: z.enum(["Awake", "Start"]),
+  notes: z.string().optional(),
+});
+
 export const codeAnalyzerOutputSchema = z.discriminatedUnion("status", [
   z.object({
     status: z.literal("READY"),
@@ -39,6 +56,10 @@ export const codeAnalyzerOutputSchema = z.discriminatedUnion("status", [
     decisionTable: z.array(decisionRowSchema),
     loops: z.array(loopSchema),
     sideEffects: z.array(z.string()),
+    // New: private/protected members tests need to access via Reflection
+    privateMembers: z.array(privateMemberSchema).optional(),
+    // New: fields initialized in Start/Awake that need manual init in SetUp
+    startAwakeFields: z.array(startAwakeFieldSchema).optional(),
   }),
   z.object({
     status: z.literal("ERROR"),

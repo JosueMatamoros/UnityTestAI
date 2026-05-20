@@ -7,12 +7,10 @@ DO NOT:
 - Generate tests
 - Optimize code
 - Add assumptions
-- Validate dependencies (already resolved)
 - Include standard .NET types (System.*, Collections.*, Linq.*) in the dependencies list
 - Include Unity built-in types (MonoBehaviour, GameObject, Transform, GetComponent, etc.) in the dependencies list
 - Include third-party types (DG.Tweening.*, etc.) in the dependencies list
-- Include types that are NOT directly referenced in the target method body
-- Include enums, classes, or structs that the target method never accesses — search the method body for the type name; if it does not appear, do NOT include it
+- Include types NOT directly referenced in the target method body
 
 INPUT:
 - Target method: `<method-name>` in class `<class-name>`
@@ -20,42 +18,85 @@ INPUT:
 - Assembled context (target code + resolved dependencies, with section headers):
 {assembledContext}
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 TASK:
 
-1. Extract:
+1. METHOD SUMMARY — Extract:
    - Method signature (name, parameters, return type)
    - All inputs with their names and types
    - Return type
 
-2. Scan the method body line by line and list every control-flow keyword:
-   - `if` / `else if` → add TWO rows to decisionTable (one true, one false)
+2. DECISION TABLE — Scan the method body line by line:
+   - `if` / `else if` → add TWO rows (one true, one false)
    - `foreach` / `for` / `while` → add ONE entry to loops
-   - CRITICAL: an `if` INSIDE a `foreach` or `for` is a separate condition — it MUST get its own two rows in the decisionTable. Do NOT merge it with the outer `if`.
+   - CRITICAL: an `if` INSIDE a loop is a separate condition — TWO rows of its own
+   - Include a fall-through row when ALL conditions fail (e.g., "throws exception")
 
-3. Build the decision table:
-   - Each row = one branch of one condition
-   - Use the EXACT condition expression copied from the source code
-   - For outer conditions that guard a loop block: true = "enters foreach/for block", false = "skips to next condition" or "falls through"
-   - For inner conditions (inside loops): true = "return item" or "break", false = "continue iteration to next element"
-   - IMPORTANT: the false branch of an `if` inside a loop is ALWAYS "continue iteration to next element" — the throw/exception happens AFTER the loop completes without finding a match, not on each false iteration
-   - Include a final fall-through row when ALL outer conditions fail AND all loops complete without returning (e.g., "throws exception")
+3. LOOPS — List every `foreach`, `for`, `while`:
+   - For `foreach`: condition = collection being iterated
+   - For `for`/`while`: condition = loop condition expression
 
-4. List ALL loops:
-   - Every `foreach`, `for`, `while` in the method — no exceptions
-   - For `foreach`: the condition field = the collection being iterated (e.g., "CandyPrefabs")
-   - For `for`/`while`: the condition field = the loop condition expression
+4. SIDE EFFECTS — Detect:
+   - State changes, field mutations, external calls, property sets, thrown exceptions
 
-5. Detect side effects:
-   - State changes, field mutations, external method calls, property sets
-   - Thrown exceptions count as side effects
+5. DEPENDENCIES — External project-specific types the method interacts with:
+   - Fields/arrays of the SAME class are NOT dependencies — they are internal state
+   - For each: list only the members the target method calls on it
 
-6. Filter dependencies — strict rules:
-   - A dependency is an external project-specific type (class, struct, enum) that the target method interacts with
-   - Fields or arrays declared in the SAME class (e.g., CandyPrefabs, BonusPrefabs, shapes) are NOT dependencies — they are internal state
-   - `GetComponent<T>()` means T is a dependency (because T is an external type whose members are accessed)
-   - `GetComponent` itself is a Unity API — do NOT list it as a member of T
-   - For each dependency, list the specific members (properties, fields, methods) that the target method accesses on instances of that type
-   - If a type only appears as a field/array declaration of the enclosing class and the method just iterates or indexes it, that is NOT a dependency
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+6. PRIVATE MEMBERS — This section is CRITICAL for test generation.
+
+   Scan ALL of the following in class `<class-name>` and fill privateMembers:
+
+   A. Fields without `public` access modifier that the target method reads or writes:
+      kind = "field"
+      Example: `private Queue<Vector3> waypoints` → { name: "waypoints", kind: "field", type: "Queue<Vector3>" }
+
+   B. Properties without `public` that the target method reads or writes:
+      kind = "property"
+
+   C. Nested types (enum, struct, class) declared INSIDE `<class-name>` without `public`:
+      kind = "nestedType"
+      List ALL values if it is an enum.
+      Example: `enum State { Wait, Init }` → { name: "State", kind: "nestedType", type: "enum", nestedValues: ["Wait","Init"] }
+
+   D. Unity MonoBehaviour message methods if `<method-name>` IS one of them:
+      These are ALWAYS considered private regardless of their declaration:
+      Update, FixedUpdate, LateUpdate, Awake, Start, OnEnable, OnDisable,
+      OnTriggerEnter2D, OnTriggerExit2D, OnCollisionEnter2D, OnCollisionExit2D,
+      OnTriggerEnter, OnTriggerExit, OnCollisionEnter, OnCollisionExit, OnDestroy
+      kind = "unityMessage"
+      Example: `void FixedUpdate()` → { name: "FixedUpdate", kind: "unityMessage", type: "void" }
+
+   RULES for privateMembers:
+   - In C#, a member with NO access modifier defaults to `private`
+   - Include a field if the target method body references it (reads, writes, calls methods on it)
+   - Do NOT include public members
+   - If there are no private members, return []
+
+7. START/AWAKE FIELDS — Scan Start() and Awake() in the context.
+   List every field initialized (assigned, newed, or fetched) inside Start() or Awake()
+   that the target method also reads or writes.
+   These MUST be manually initialized in test SetUp when Start/Awake are bypassed.
+
+   RULES for startAwakeFields:
+   - Include collections (Queue, List, Stack, Dictionary) initialized inside Start/Awake
+   - Include component references assigned via GetComponent or Find inside Start/Awake
+   - Include float/int/bool values assigned in Start/Awake that affect the method's branches
+   - notes = brief description of what value to use in tests (e.g., "initialize with one entry")
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+MANDATORY VERIFICATION before responding:
+1. Count every `if`/`else if` in the method = N_conditions → decisionTable must have ≥ N_conditions×2 rows
+2. Count every `foreach`/`for`/`while` = N_loops → loops array must have exactly N_loops entries
+3. For each field in the method body: is it declared as private/protected or with no modifier? → add to privateMembers
+4. Is `<method-name>` a Unity message method? → add to privateMembers with kind = "unityMessage"
+5. Look at Start() and Awake(): every field they assign that the target method also uses → add to startAwakeFields
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 RULES:
 - Output ONLY valid JSON (no explanations, no markdown, no comments).
@@ -63,43 +104,34 @@ RULES:
 - Do not omit required fields.
 - If a section has no data, return an empty array [].
 
-MANDATORY COUNTS — verify before responding:
-1. Count every `if` and `else if` keyword in the target method body = N_conditions
-2. The decisionTable MUST have at least (N_conditions * 2) rows + 1 fall-through row
-3. Count every `foreach`, `for`, `while` keyword = N_loops
-4. The loops array MUST have exactly N_loops entries
-5. For each dependency: is it a field/array of <class-name>? If yes → remove it. Does the method call .member on it? If no → remove it.
-
 OUTPUT FORMAT (STRICT JSON ONLY):
 
 {
   "status": "READY",
   "methodSummary": {
     "name": "",
-    "inputs": [
-      { "name": "", "type": "" }
-    ],
+    "inputs": [{ "name": "", "type": "" }],
     "output": ""
   },
   "dependencies": [
-    {
-      "name": "",
-      "type": "class | struct | enum | external",
-      "membersUsed": [""]
-    }
+    { "name": "", "type": "class | struct | enum | external", "membersUsed": [""] }
   ],
   "decisionTable": [
-    {
-      "conditions": [""],
-      "branch": "true | false",
-      "expectedBehavior": ""
-    }
+    { "conditions": [""], "branch": "true | false", "expectedBehavior": "" }
   ],
   "loops": [
+    { "type": "for | while | foreach", "condition": "" }
+  ],
+  "sideEffects": [""],
+  "privateMembers": [
     {
-      "type": "for | while | foreach",
-      "condition": ""
+      "name": "",
+      "kind": "field | property | nestedType | unityMessage",
+      "type": "",
+      "nestedValues": ["optional, only for nestedType enum/struct"]
     }
   ],
-  "sideEffects": [""]
+  "startAwakeFields": [
+    { "name": "", "type": "", "initIn": "Awake | Start", "notes": "" }
+  ]
 }

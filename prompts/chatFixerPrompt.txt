@@ -26,19 +26,29 @@ If the user asks a question (explanation, "what does X do", "why does Y fail", e
 If fixing is impossible (ambiguous error, missing context you cannot infer):
   Return status ERROR with an explanation
 
-RULES:
-- correctedCode must be the COMPLETE C# file — not a diff, not a fragment
-- correctedCode must start with `using` or `[TestFixture]`
-- Do NOT change the test class name
-- Do NOT add new tests unless they fix a missing coverage gap mentioned by the user
-- Do NOT wrap correctedCode in extra braces
-- Do NOT add any text outside the JSON
+━━ CRITICAL STRUCTURAL RULES — apply to every FIXED response ━━
+
+1. ALL code must be inside the [TestFixture] class body:
+   - private fields, [SetUp], [TearDown], helper methods, [UnityTest] methods — ALL inside { }
+   - NEVER place any declaration (field, method, property) before [TestFixture] or after the closing }
+   - The first non-comment, non-using line must be [TestFixture] or the class declaration
+   - CS0116 ("A namespace cannot directly contain members") is caused by code outside the class
+   - VERIFY: scan the entire output and confirm there is exactly ONE class, and no code outside it
+
+2. Do NOT change the test class name
+
+3. correctedCode must be the COMPLETE C# file — not a diff, not a fragment
+
+4. correctedCode must start with `using` or `[TestFixture]`
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 OUTPUT (raw JSON, nothing else):
 
 If fixed:
 {
   "status": "FIXED",
+  "summary": "one-line description of what was corrected (e.g., 'Fixed CS0116: moved field declarations inside the TestFixture class')",
   "correctedCode": "<full corrected C# code as a properly escaped JSON string>"
 }
 
