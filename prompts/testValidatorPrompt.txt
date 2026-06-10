@@ -13,7 +13,10 @@ CHECKLIST — verify each point in order:
 
 1. STRUCTURE: Has [TestFixture] attribute, exactly ONE public class
 
-2. USINGS: All five mandatory usings present — NUnit.Framework, UnityEngine, UnityEngine.TestTools, System.Collections, System.Reflection
+2. USINGS: All mandatory usings present — NUnit.Framework, UnityEngine, UnityEngine.TestTools, System.Collections, System.Reflection
+   ALSO: scan the reference context for `namespace XYZ { }` blocks. For every namespace found,
+   verify `using XYZ;` is present in the test file.
+   Missing project namespace using → CS0246 "type not found" — mark FAIL.
 
 3. TEST METHODS: Every test method uses [UnityTest] and returns IEnumerator
 
@@ -24,41 +27,61 @@ CHECKLIST — verify each point in order:
      count = 0  →  FAIL (no assertion)
      count = 1  →  PASS
      count ≥ 2  →  FAIL — must be split into separate methods
-   WRONG (2 asserts = FAIL):
-     Assert.IsNotNull(result);
-     Assert.IsFalse(((IEnumerable<GameObject>)result).Any());
-   RIGHT (1 assert = PASS):
-     Assert.IsFalse(((IEnumerable<GameObject>)result).Any());
-   RULE: Assert.IsNotNull counts as an assert. If a method has IsNotNull PLUS any other Assert → FAIL.
-   When fixing: remove the IsNotNull line or move it to its own dedicated test method.
+   RULE: Assert.IsNotNull counts as 1. IsNotNull paired with any other Assert → FAIL.
+   When fixing: remove IsNotNull or move it to its own test method.
 
 6. NO BRANCHES in test methods: no if/else, for, foreach, while, or try/catch inside a test body
 
-7. NO SetActive(true) in [SetUp] or test methods
+7. NO FAKE TESTS — scan for these patterns, mark FAIL if any found:
+   a) Assert.Pass() in any test method — this is a fake assertion that always passes
+   b) Assert.IsTrue(true) — same problem
+   c) Tests whose only assertion is trivially true regardless of the code under test
+   d) Tests that attempt to simulate keyboard input (Input.GetKeyDown/GetKey/GetButton/GetAxis
+      always return false/0 in PlayMode — such tests never exercise the branch they claim to test)
+   FIX: remove the entire test method — do NOT replace Assert.Pass() with a different assertion.
+   These branches are untestable in PlayMode and must be omitted entirely.
 
-8. COVERAGE — if/else: every branch in the target method has at least one test exercising it
+8. NO new ON MONOBEHAVIOURS — scan every `new XYZ(` call in the file:
+   For each, find `class XYZ` in the reference context. Trace its inheritance chain.
+   If it leads to MonoBehaviour/Component/Behaviour → FAIL.
+   WRONG: new TetriminoView()  when TetriminoView : PoolingObject : MonoBehaviour
+   CORRECT: go.SetActive(false); go.AddComponent<TetriminoView>()
+   FIX: replace `new XYZ()` with AddComponent on a new inactive GameObject.
 
-9. COVERAGE — loops: for each foreach/for/while loop there are tests for empty collection, matching item, and no-match exhaustion
+9. NO MISSING CONSTRUCTOR ARGS — scan every `new XYZ(` call:
+   Find the constructor of XYZ in the reference context.
+   If the constructor requires parameters and the call passes none → FAIL (CS1729).
+   WRONG: new Playfield()  when only `public Playfield(GameSettings gs)` exists
+   CORRECT: new Playfield(gameSettings)
 
-10. SYNTAX: No obvious compilation errors (unmatched braces, missing semicolons, undeclared variables)
+10. NO GetField ON COMPUTED PROPERTIES — scan every GetField("name", ...) call:
+    Find `name` in `<class-name>`. If it is declared as a property with `{ get { ... } }` → FAIL.
+    GetField returns null for properties — the test will throw NullReferenceException at runtime.
+    FIX: find the underlying field(s) the property getter reads from and set those instead.
 
-11. STRUCTURE — NO CODE OUTSIDE THE CLASS (CS0116 prevention):
+11. NO SetActive(true) in [SetUp] or test methods
+
+12. COVERAGE — if/else: every TESTABLE branch in the target method has at least one test exercising it
+    (skip branches that are only reachable via Input.GetKeyDown/GetKey/GetAxis — those are untestable)
+
+13. COVERAGE — loops: for each foreach/for/while loop there are tests for empty collection,
+    matching item, and no-match exhaustion
+
+14. SYNTAX: No obvious compilation errors (unmatched braces, missing semicolons, undeclared variables)
+
+15. NO CODE OUTSIDE THE CLASS (CS0116 prevention):
     All fields, methods, and statements must be INSIDE the [TestFixture] class body.
-    Scan the entire file:
-      - No field declarations before [TestFixture] or after the closing }
-      - No method declarations outside the class
-      - The file structure must be: usings → [TestFixture] → public class → { ... }
-    CS0116 ("A namespace cannot directly contain members") is caused by code outside the class.
-    If any code exists outside the class → move it inside → mark item 11 as FAIL
+    File structure must be: usings → [TestFixture] → public class → { ... }
+    If any declaration exists before [TestFixture] or after the closing } → FAIL
 
 STRICT RULES:
 - DO NOT add tests unless a branch is genuinely uncovered
-- DO NOT change the class name — preserve exactly whatever class name is already in the code
+- DO NOT change the class name
 - DO NOT add explanations outside the JSON
-- If the code passes ALL eleven checklist items, return { "status": "VALID" } immediately
+- If the code passes ALL checklist items, return { "status": "VALID" } immediately
 
 MANDATORY CHECK BEFORE RESPONDING:
-Evaluate each checklist item as PASS or FAIL — item 5 requires an explicit count per method.
+Evaluate each checklist item as PASS or FAIL.
 Only set status to INVALID if at least one item is FAIL.
 
 OUTPUT (raw JSON, nothing else):
@@ -73,5 +96,4 @@ If there are issues:
   "correctedCode": "<the full corrected C# code as a properly escaped JSON string>"
 }
 
-CRITICAL FORMAT RULE: The correctedCode string must start directly with `using` or `[TestFixture]`.
-DO NOT wrap it in extra `{}` braces. The very first character must be `u` (for `using`) or `[` (for an attribute).
+CRITICAL FORMAT RULE: correctedCode must start directly with `using` or `[TestFixture]`.

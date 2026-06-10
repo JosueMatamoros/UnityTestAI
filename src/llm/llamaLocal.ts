@@ -11,17 +11,13 @@ export async function generateWithOllama(
   messages: ChatMessage[],
   model: string = "qwen2.5:14b"
 ): Promise<string> {
-  try {
-    const { text } = await generateText({
-      model: ollama.chatModel(model),
-      messages,
-      temperature: 0,
-      providerOptions: {
-        ollama: { options: { num_ctx: 8192 } },
-      },
-    });
-    return text;
-  } catch (err: any) {
-    return `Error al generar (Ollama): ${err.message || err}`;
-  }
+  const { text } = await generateText({
+    model: ollama.chatModel(model),
+    messages,
+    temperature: 0,
+    providerOptions: {
+      ollama: { options: { num_ctx: 8192 } },
+    },
+  });
+  return text;
 }

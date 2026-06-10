@@ -28,6 +28,38 @@ If fixing is impossible (ambiguous error, missing context you cannot infer):
 
 ━━ CRITICAL STRUCTURAL RULES — apply to every FIXED response ━━
 
+0. NAMESPACE USINGS — CS0246 prevention:
+   If the code under test (or any type it uses) is declared inside `namespace XYZ { }`,
+   the test file MUST have `using XYZ;` at the top.
+   Missing project namespace `using` → CS0246 "type not found" for every type in that namespace.
+   VERIFY: scan the reference context for `namespace` declarations → add a `using` for each one
+   that contains a type referenced in the test.
+
+0.5. COMPUTED PROPERTIES — never use GetField on a property:
+   A member declared as `private T Name { get { return expr; } }` is a property, not a field.
+   `typeof(C).GetField("Name", NonPublic|Instance)` returns null.
+   CORRECT approach: inspect the getter body → find the underlying field(s) it reads from → set THOSE.
+   Example: `private Tetrimino Current { get { return _list.Last(); } }`
+            → set `_list` (a List<TetriminoView> field) via Reflection, not "Current".
+
+0.6. UNTESTABLE INPUT BRANCHES:
+   Input.GetKeyDown / GetKey / GetButton → always false in PlayMode.
+   Input.GetAxis / GetAxisRaw → always 0 in PlayMode.
+   Branches reachable ONLY via these calls can NEVER be exercised.
+   CORRECT fix: remove the test entirely.
+   WRONG fix: keep the test with Assert.Pass() or Assert.IsTrue(true) — that is a fake test.
+
+   ALSO — helper MonoBehaviours:
+   Any type that extends MonoBehaviour (directly or via base class) must use AddComponent, not `new`.
+   `new TetriminoView()` when TetriminoView is a MonoBehaviour → crash.
+   CORRECT: go.SetActive(false); var tv = go.AddComponent<TetriminoView>();
+
+0.75. CONSTRUCTOR PARAMETERS:
+   Before writing `new DependencyType()`, check its constructor in the reference context.
+   If only a parameterized constructor exists, you MUST provide all required arguments.
+   WRONG:  new Playfield()   ← CS1729 if only `Playfield(GameSettings)` exists
+   CORRECT: new Playfield(gameSettings)
+
 1. ALL code must be inside the [TestFixture] class body:
    - private fields, [SetUp], [TearDown], helper methods, [UnityTest] methods — ALL inside { }
    - NEVER place any declaration (field, method, property) before [TestFixture] or after the closing }

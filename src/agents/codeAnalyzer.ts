@@ -60,6 +60,29 @@ export const codeAnalyzerOutputSchema = z.discriminatedUnion("status", [
     privateMembers: z.array(privateMemberSchema).optional(),
     // New: fields initialized in Start/Awake that need manual init in SetUp
     startAwakeFields: z.array(startAwakeFieldSchema).optional(),
+    // New: project namespace strings the test file must `using` to resolve types
+    requiredUsings: z.array(z.string()).optional(),
+    // New: branches that are unreachable in PlayMode (Input.GetKeyDown etc.) — skip entirely
+    untestableBranches: z.array(z.object({
+      condition: z.string(),
+      reason: z.string(),
+    })).optional(),
+    // Pre-computed instantiation and constructor decisions — used as ground truth by Test Generator
+    preFlightChecklist: z.object({
+      typeInstantiations: z.array(z.object({
+        typeName: z.string(),
+        pattern: z.enum(["AddComponent", "new"]),
+        constructorSignature: z.string().nullable(),
+        parameterless: z.boolean(),
+        constructorNotes: z.string(),
+        reason: z.string(),
+      })),
+      computedProperties: z.array(z.object({
+        propertyName: z.string(),
+        getterSummary: z.string(),
+        controlVia: z.string(),
+      })),
+    }).optional(),
   }),
   z.object({
     status: z.literal("ERROR"),

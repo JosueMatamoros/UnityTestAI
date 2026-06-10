@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { collectClassAndMethod } from "../collectInputs";
 import { ChatSession } from "../llm/sessionManager";
-import { generateWithChatGPT, generateWithOllama } from "../llm";
+import { generateWithChatGPT, generateWithOllama, generateWithClaude } from "../llm";
 import { checkSymbols } from "../utils/codeValidation";
 import { saveUnityTest } from "../utils/testSaver";
 import { getFilteredAssetsTree } from "../utils/getFilteredAssetsTree";
@@ -54,6 +54,14 @@ const modelHandlers: Record<
     session.addAssistantMessage(result);
     return result;
   },
+  claude: async (prompt, panel, subModel) => {
+    let session = sessionsByPanel.get(panel);
+    if (!session) { session = new ChatSession(); sessionsByPanel.set(panel, session); }
+    session.addUserMessage(prompt);
+    const result = await generateWithClaude(session.getMessages(), subModel || "claude-opus-4-8");
+    session.addAssistantMessage(result);
+    return result;
+  },
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -70,7 +78,7 @@ function notifyAgent(
 function formatCodeAnalysis(analysis: CodeAnalyzerOutput): string {
   if (analysis.status !== "READY") return "";
 
-  const { methodSummary, decisionTable, loops, sideEffects, dependencies, privateMembers, startAwakeFields } = analysis;
+  const { methodSummary, decisionTable, loops, sideEffects, dependencies, privateMembers, startAwakeFields, requiredUsings, untestableBranches, preFlightChecklist } = analysis;
   const lines: string[] = [];
 
   const params = methodSummary.inputs.map(i => `${i.type} ${i.name}`).join(", ");
@@ -117,6 +125,46 @@ function formatCodeAnalysis(analysis: CodeAnalyzerOutput): string {
     for (const f of startAwakeFields) {
       const note = f.notes ? ` — ${f.notes}` : "";
       lines.push(`  ${f.type} ${f.name} [${f.initIn}]${note}`);
+    }
+  }
+
+  if (requiredUsings && requiredUsings.length > 0) {
+    lines.push("\nRequired project namespace usings (add to test file):");
+    for (const ns of requiredUsings) {
+      lines.push(`  using ${ns};`);
+    }
+  }
+
+  if (untestableBranches && untestableBranches.length > 0) {
+    lines.push("\nUNTESTABLE BRANCHES — OMIT these entirely, do NOT write Assert.Pass() placeholders:");
+    for (const b of untestableBranches) {
+      lines.push(`  SKIP: ${b.condition} — ${b.reason}`);
+    }
+  }
+
+  if (preFlightChecklist) {
+    lines.push("\n━━ PRE-FLIGHT CHECKLIST — use as ground truth, do NOT re-derive ━━");
+
+    if (preFlightChecklist.typeInstantiations.length > 0) {
+      lines.push("\nType Instantiations:");
+      for (const t of preFlightChecklist.typeInstantiations) {
+        if (t.pattern === "AddComponent") {
+          lines.push(`  ${t.typeName} → go.SetActive(false); go.AddComponent<${t.typeName}>()  [${t.reason}]`);
+        } else if (t.parameterless) {
+          lines.push(`  ${t.typeName} → new ${t.typeName}()  [${t.reason}]`);
+        } else {
+          const note = t.constructorNotes ? `  NOTE: ${t.constructorNotes}` : "";
+          lines.push(`  ${t.typeName} → new ${t.constructorSignature}  [${t.reason}]${note}`);
+        }
+      }
+    }
+
+    if (preFlightChecklist.computedProperties.length > 0) {
+      lines.push("\nComputed Properties (GetField returns null — set underlying data instead):");
+      for (const p of preFlightChecklist.computedProperties) {
+        lines.push(`  ${p.propertyName}: ${p.getterSummary}`);
+        lines.push(`    → Control via: ${p.controlVia}`);
+      }
     }
   }
 
@@ -348,6 +396,8 @@ export async function createWebviewPanel(context: vscode.ExtensionContext, code:
   const models: { id: string; name: string; type?: string }[] = [];
   if (process.env.OPENAI_API_KEY)
     models.push({ id: "chatgpt", name: "ChatGPT", type: "direct" });
+  if (process.env.ANTHROPIC_API_KEY)
+    models.push({ id: "claude", name: "Claude", type: "direct" });
   models.push({ id: "llamaLocal", name: "Llama Local", type: "direct" });
 
   const uiPath = path.join(context.extensionPath, "ui", "index.html");

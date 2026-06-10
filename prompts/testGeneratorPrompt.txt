@@ -18,6 +18,20 @@ INPUT — fully assembled context:
 
 {codeAnalysis}MANDATORY STEPS BEFORE WRITING ANY CODE:
 
+━━ STEP -1 — READ PRE-FLIGHT CHECKLIST (do this FIRST if present in the analysis block above) ━━
+
+If the analysis block contains a "PRE-FLIGHT CHECKLIST" section, it contains pre-computed decisions
+made by the Code Analyzer. THESE ARE AUTHORITATIVE — do not re-derive them, do not override them.
+
+Read and apply:
+  • Type Instantiations → exact `new` vs `AddComponent` pattern for EVERY type, including helpers
+  • Computed Properties → which underlying fields to set instead of using GetField on the property
+  • Untestable Branches → branches to OMIT entirely (no Assert.Pass, no placeholder tests)
+  • Required Usings → exact `using XYZ;` directives to add
+
+If the pre-flight checklist is present, SKIP Steps 0 and 0.1 below — the checklist already contains
+those answers. Continue directly to STEP 0.5.
+
 ━━ STEP 0 — CLASS INSTANTIATION CHECK (mandatory, do this before anything else) ━━
 
 Find the exact declaration of `<class-name>` in the context. It looks like one of:
@@ -37,7 +51,33 @@ necessarily a MonoBehaviour. Only `: MonoBehaviour` in the declaration makes it 
 Using AddComponent on a plain C# class → CS0311 compile error → tests will not compile.
 Using new on a MonoBehaviour → MissingMethodException at runtime → tests will fail.
 
-Write your answer before continuing: "<class-name> declaration: [copy the exact line] → [new / AddComponent]"
+THIS SAME CHECK APPLIES TO EVERY TYPE YOU INSTANTIATE IN TESTS — not only the target class.
+For every helper type you create in [SetUp] or test methods (e.g., TetriminoView, EnemyBase, Projectile):
+  - Find its declaration in the assembled context
+  - If it inherits from MonoBehaviour (directly or through a base class) → AddComponent on a NEW inactive GameObject
+  - If it is a plain C# class/struct → new ClassName(...)
+NEVER call `new` on a MonoBehaviour, even if it is just a helper type, not the class under test.
+
+Write your answer before continuing:
+  "<class-name> declaration: [copy exact line] → [new / AddComponent]"
+  For each helper type used: "[TypeName] declaration: [copy exact line] → [new / AddComponent]"
+
+━━ STEP 0.1 — NAMESPACE & USING CHECK (mandatory) ━━
+
+Scan the assembled context for every `namespace XYZ { }` block that wraps any type you will reference
+in the test (target class, its dependencies, helper structs, enums, etc.).
+
+For each such type:
+  1. Find its declaration in the context
+  2. If it is wrapped in `namespace XYZ { ... }`, add `using XYZ;` at the top of the test file
+  3. Repeat for nested namespaces: `namespace A.B { ... }` → `using A.B;`
+
+WRONG: using `GameLogic` when it is declared inside `namespace TetrisEngine { }` with no `using TetrisEngine;`
+       → CS0246: "The type or namespace name 'GameLogic' could not be found"
+CORRECT: add `using TetrisEngine;` before [TestFixture]
+
+Rule: EVERY namespace in the context that wraps a type you reference → one `using XYZ;` in the file.
+Write down the namespace(s) found before continuing.
 
 ━━ STEP 0.5 — PRIVATE MEMBER & INITIALIZATION SCAN ━━
 
@@ -72,6 +112,18 @@ A. ACCESS MODIFIERS — For every field, property, and method the tests need to 
      stateField.SetValue(instance, Enum.Parse(stateType, "Wait"));
 
    Cache ALL FieldInfo / MethodInfo / Type lookups in [SetUp] private fields — never inline in tests.
+
+   COMPUTED PROPERTIES — a property with `{ get { return ...; } }` has NO backing field:
+     `private Tetrimino Current { get { return _list.Last(); } }`  ← property, no field
+     `typeof(C).GetField("Current", NonPublic | Instance)` → returns NULL → NullReferenceException
+
+     WRONG:  GetField("Current", ...).SetValue(instance, value)  ← null ref
+     CORRECT: Find the underlying field(s) the property reads from (here: `_list`).
+              Set/populate those fields instead.
+
+     RULE: If a member declaration contains `{ get { ... } }` or `{ get; set; }` → it is a PROPERTY.
+           A property with no explicit setter backing field CANNOT be written via GetField.
+           Inspect the getter body → identify what field(s) it reads → set THOSE fields.
 
 B. UNITY MESSAGE METHODS — always private regardless of declaration:
    Update, FixedUpdate, LateUpdate, Awake, Start, OnEnable, OnDisable, OnDestroy,
@@ -123,6 +175,23 @@ D. START/AWAKE FIELDS — fields initialized inside Start() or Awake() are NOT i
            ?.SetValue(_sut, float.MaxValue);
      }
 
+E. CONSTRUCTOR PARAMETERS — MANDATORY PRE-FLIGHT before writing any SetUp code:
+
+   List every type you plan to instantiate with `new` (non-MonoBehaviour only).
+   For each: find its class/struct definition in the assembled context and COPY its constructor signature.
+   Only after confirming the constructor signature, write the `new` call.
+
+   WRONG:  new Playfield()          ← CS1729 if only `public Playfield(GameSettings gs)` exists
+   CORRECT: new Playfield(gameSettings)
+
+   WRONG:  new Tetrimino()          ← CS1729 if only `public Tetrimino(TetriminoSpecs specs)` exists
+   CORRECT: new Tetrimino(new TetriminoSpecs { serializedBlockPositions = minimal100List, ... })
+
+   Rules for complex constructor arguments:
+   - Build the minimum valid argument — only assign fields needed to prevent exceptions
+   - If the constructor validates a List count (e.g., must be exactly 100 elements), fill it exactly
+   - If the constructor reads a nullable reference, provide a non-null minimal value
+
 Write down the list of private members and Start/Awake fields before continuing.
 
 ━━ STEP 1 — BRANCH ANALYSIS ━━
@@ -139,8 +208,22 @@ Read the method body and enumerate every branch:
      ⚠ Case (c) is required to cover the closing `}` of the loop AND the code that runs after the loop
   4. For each `throw` / `return` inside a loop or condition: verify it has a dedicated test
   5. Write down ALL required input combinations before writing a single test
+  6. UNTESTABLE BRANCHES — identify and mark these BEFORE writing any test:
 
-Only after completing this analysis, write the test methods — one per branch combination.
+     The following ALWAYS return false/0 in PlayMode — branches guarded ONLY by these can NEVER be taken:
+       Input.GetKeyDown(...)   → always false
+       Input.GetKey(...)       → always false
+       Input.GetButton(...)    → always false
+       Input.GetAxis(...)      → always 0
+       Input.GetMouseButton(…) → always false
+
+     RULE: Do NOT write a test for any branch that is only reachable via Unity Input calls.
+           Do NOT use Assert.Pass() or Assert.IsTrue(true) as placeholder tests — these are INVALID.
+           OMIT those test methods entirely. Untested input branches are a known PlayMode limitation.
+
+     If the ENTIRE method body is unreachable without user input, note this and generate zero tests.
+
+Only after completing this analysis (steps 1-6), write the test methods — one per testable branch combination.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -158,6 +241,8 @@ REQUIREMENTS:
        using System.Collections.Generic;
        using System.Linq;
        using System.Reflection;
+   - ADDITIONALLY: add `using XYZ;` for every project namespace identified in STEP 0.1.
+     A missing project namespace using causes CS0246 ("type not found") for every type in that namespace.
 
 2. PlayMode tests — ATTRIBUTE RULES (read carefully)
    - All tests MUST use [UnityTest] and return IEnumerator

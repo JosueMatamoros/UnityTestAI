@@ -13,7 +13,7 @@ export function activate(context: vscode.ExtensionContext) {
       return;
     }
 
-    const document = editor.document;
+    const document = editor.document;5
     const text = document.getText();
 
     await createWebviewPanel(context, text);
