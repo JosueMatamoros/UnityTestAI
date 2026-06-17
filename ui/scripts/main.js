@@ -35,6 +35,8 @@ const codeContainer = document.getElementById("codeContainer"); // Contenedor de
 const generateBtn = document.getElementById("generateBtn"); // Botón para generar las pruebas
 const resultContainer = document.getElementById("resultContainer"); // Contenedor del resultado del LLM
 const copyBtn = document.getElementById("copyBtn"); // Botón para copiar el resultado del LLM
+const genTimeBadge = document.getElementById("genTimeBadge"); // Tiempo total de generación
+const genTokenBadge = document.getElementById("genTokenBadge"); // Tokens totales de la sesión
 const currentStep = document.getElementById("currentStep"); // Texto del paso actual (1 de 2)
 const stepperFill = document.getElementById("stepperFill"); // Barra de progreso del stepper
 const stepperBox = document.getElementById("stepper"); // Contenedor completo del stepper
@@ -142,6 +144,42 @@ generateBtn.addEventListener("click", () => {
 });
 
 /* ============================
+   Tiempo de generación
+============================ */
+
+// Formatea milisegundos a un texto legible (ej: "1.8 s" o "1 m 12 s")
+function formatElapsed(ms) {
+  const totalSeconds = ms / 1000;
+  if (totalSeconds < 60) {
+    return `${totalSeconds.toFixed(1)} s`;
+  }
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = Math.round(totalSeconds % 60);
+  return `${minutes} m ${seconds} s`;
+}
+
+// Muestra el tiempo total de generación en el badge (arriba a la derecha)
+function showGenTime(ms) {
+  if (!genTimeBadge || typeof ms !== "number") return;
+  genTimeBadge.textContent = formatElapsed(ms);
+  genTimeBadge.style.display = "inline-flex";
+}
+
+// Formatea un conteo de tokens (ej: "950 tok" o "8.2k tok")
+function formatTokens(n) {
+  if (n < 1000) return `${n} tok`;
+  return `${(n / 1000).toFixed(1)}k tok`;
+}
+
+// Muestra los tokens totales consumidos en la sesión de generación
+function showGenTokens(total) {
+  if (!genTokenBadge || typeof total !== "number") return;
+  genTokenBadge.textContent = formatTokens(total);
+  genTokenBadge.title = `${total.toLocaleString()} tokens (entrada + salida) en esta generación`;
+  genTokenBadge.style.display = "inline-flex";
+}
+
+/* ============================
    Comunicación con el backend
 ============================ */
 
@@ -160,6 +198,8 @@ window.addEventListener("message", (event) => {
 
     case "clearPipeline":
       clearAgentPipeline();
+      if (genTimeBadge) genTimeBadge.style.display = "none";
+      if (genTokenBadge) genTokenBadge.style.display = "none";
       break;
 
     case "dependencyFiles":
@@ -189,6 +229,8 @@ window.addEventListener("message", (event) => {
       hideLoadingUI();
       clearAgentPipeline();
       renderResult(message.result, resultContainer, copyBtn);
+      showGenTime(message.elapsedMs);
+      showGenTokens(message.totalTokens);
       showChatUI();
       break;
 

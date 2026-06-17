@@ -15,6 +15,14 @@ export function renderResult(raw, resultContainer, copyBtn) {
     segments.push({ type: "text", content: raw.slice(lastIndex) });
   }
 
+  // Si el LLM no devolvió fences (```), todo el contenido es código C#:
+  // lo tratamos como un único bloque de código en lugar de texto plano.
+  const hasCode = segments.some((s) => s.type === "code");
+  if (!hasCode) {
+    segments.length = 0;
+    segments.push({ type: "code", content: raw });
+  }
+
   let html = "";
   segments.forEach((seg) => {
     if (seg.type === "code") {

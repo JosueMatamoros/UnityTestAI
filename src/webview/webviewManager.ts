@@ -32,6 +32,22 @@ type TestContext = {
 };
 const testContextByPanel = new WeakMap<vscode.WebviewPanel, TestContext>();
 
+// Acumulador de tokens por panel — suma el uso de todos los agentes de una sesión
+const tokenTotalsByPanel = new WeakMap<
+  vscode.WebviewPanel,
+  { inputTokens: number; outputTokens: number }
+>();
+
+function addTokenUsage(
+  panel: vscode.WebviewPanel,
+  usage: { inputTokens: number; outputTokens: number }
+) {
+  const totals = tokenTotalsByPanel.get(panel) ?? { inputTokens: 0, outputTokens: 0 };
+  totals.inputTokens += usage.inputTokens;
+  totals.outputTokens += usage.outputTokens;
+  tokenTotalsByPanel.set(panel, totals);
+}
+
 // ── Model handlers ─────────────────────────────────────────────────────────────
 
 const modelHandlers: Record<
@@ -42,25 +58,28 @@ const modelHandlers: Record<
     let session = sessionsByPanel.get(panel);
     if (!session) { session = new ChatSession(); sessionsByPanel.set(panel, session); }
     session.addUserMessage(prompt);
-    const result = await generateWithChatGPT(session.getMessages(), subModel || "gpt-4o-mini");
-    session.addAssistantMessage(result);
-    return result;
+    const { text, usage } = await generateWithChatGPT(session.getMessages(), subModel || "gpt-4o-mini");
+    session.addAssistantMessage(text);
+    addTokenUsage(panel, usage);
+    return text;
   },
   llamaLocal: async (prompt, panel) => {
     let session = sessionsByPanel.get(panel);
     if (!session) { session = new ChatSession(); sessionsByPanel.set(panel, session); }
     session.addUserMessage(prompt);
-    const result = await generateWithOllama(session.getMessages());
-    session.addAssistantMessage(result);
-    return result;
+    const { text, usage } = await generateWithOllama(session.getMessages());
+    session.addAssistantMessage(text);
+    addTokenUsage(panel, usage);
+    return text;
   },
   claude: async (prompt, panel, subModel) => {
     let session = sessionsByPanel.get(panel);
     if (!session) { session = new ChatSession(); sessionsByPanel.set(panel, session); }
     session.addUserMessage(prompt);
-    const result = await generateWithClaude(session.getMessages(), subModel || "claude-opus-4-8");
-    session.addAssistantMessage(result);
-    return result;
+    const { text, usage } = await generateWithClaude(session.getMessages(), subModel || "claude-opus-4-8");
+    session.addAssistantMessage(text);
+    addTokenUsage(panel, usage);
+    return text;
   },
 };
 
@@ -183,6 +202,11 @@ async function handleGenerate(
   _context: vscode.ExtensionContext
 ) {
   generationMetaByPanel.set(panel, { className, methodName, model, subModel });
+
+  // Inicia el contador desde antes de enviar el prompt del primer agente
+  const generationStart = Date.now();
+  // Resetea el acumulador de tokens para esta sesión de generación
+  tokenTotalsByPanel.set(panel, { inputTokens: 0, outputTokens: 0 });
 
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (!workspaceFolders?.length) {
@@ -367,7 +391,10 @@ async function handleGenerate(
       savedPath: testResult.savedPath,
     });
 
-    panel.webview.postMessage({ command: "showResult", result: finalTestCode });
+    const elapsedMs = Date.now() - generationStart;
+    const tokens = tokenTotalsByPanel.get(panel) ?? { inputTokens: 0, outputTokens: 0 };
+    const totalTokens = tokens.inputTokens + tokens.outputTokens;
+    panel.webview.postMessage({ command: "showResult", result: finalTestCode, elapsedMs, totalTokens });
 
   } catch (err: any) {
     panel.webview.postMessage({ command: "agentError", message: err.message });

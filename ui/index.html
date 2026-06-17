@@ -37,6 +37,10 @@
       <div class="card" id="resultCard" style="display: none">
         <div class="card-header">
           <span>Resultado LLM</span>
+          <!-- Tiempo total de generación (arriba a la derecha) -->
+          <span id="genTimeBadge" class="gen-time-badge" style="display: none"></span>
+          <!-- Tokens totales consumidos en la sesión -->
+          <span id="genTokenBadge" class="gen-token-badge" style="display: none"></span>
           <!-- Botón para copiar el resultado del LLM -->
           <button id="copyBtn">Copiar</button>
         </div>

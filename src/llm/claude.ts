@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { ChatMessage } from "./sessionManager";
+import type { LLMResult } from "./index";
 
 // Lazily constructed so the client reads ANTHROPIC_API_KEY *after* extension.ts
 // has run dotenv.config() — constructing at module load would race the env load
@@ -27,7 +28,7 @@ function getClient(): Anthropic {
 export async function generateWithClaude(
   messages: ChatMessage[],
   model: string = "claude-opus-4-8"
-): Promise<string> {
+): Promise<LLMResult> {
   const systemPrompt = messages
     .filter((m) => m.role === "system")
     .map((m) => m.content)
@@ -50,8 +51,16 @@ export async function generateWithClaude(
 
   const finalMessage = await stream.finalMessage();
 
-  return finalMessage.content
+  const text = finalMessage.content
     .filter((block): block is Anthropic.TextBlock => block.type === "text")
     .map((block) => block.text)
     .join("");
+
+  return {
+    text,
+    usage: {
+      inputTokens: finalMessage.usage.input_tokens,
+      outputTokens: finalMessage.usage.output_tokens,
+    },
+  };
 }
