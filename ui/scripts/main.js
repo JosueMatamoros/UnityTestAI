@@ -45,6 +45,28 @@ const stepInput = document.getElementById("stepInput"); // Input donde se ingres
 const readyBadge = document.getElementById("readyBadge"); // Insignia que indica que los pasos están completos
 const chatInput = document.getElementById("chatInput"); // Input del chat con el LLM
 const chatSendBtn = document.getElementById("chatSendBtn"); // Botón para enviar mensajes al LLM
+const reduceContextToggle = document.getElementById("reduceContextToggle"); // Toggle de contexto reducido
+const reduceContextCaption = document.getElementById("reduceContextCaption"); // Etiqueta del toggle
+const contextToggleBar = document.getElementById("contextToggleBar"); // Barra del toggle de contexto
+
+function getReduceContext() {
+  return reduceContextToggle ? reduceContextToggle.checked : true;
+}
+
+function hideContextToggle() {
+  if (contextToggleBar) contextToggleBar.style.display = "none";
+}
+function showContextToggle() {
+  if (contextToggleBar) contextToggleBar.style.display = "flex";
+}
+
+if (reduceContextToggle && reduceContextCaption) {
+  reduceContextToggle.addEventListener("change", () => {
+    reduceContextCaption.textContent = reduceContextToggle.checked
+      ? "Contexto reducido"
+      : "Contexto completo";
+  });
+}
 
 /* ============================
    Inicialización de módulos
@@ -134,12 +156,14 @@ toggleBtn.addEventListener("click", () => {
 // Generar pruebas
 generateBtn.addEventListener("click", () => {
   showLoadingUI();
+  hideContextToggle();
   const { selectedModel, selectedSubModel } = getSelectedModel();
 
   vscode.postMessage({
     command: "generateTest",
     model: selectedModel,
     subModel: selectedSubModel,
+    reduceContext: getReduceContext(),
   });
 });
 
@@ -147,7 +171,6 @@ generateBtn.addEventListener("click", () => {
    Tiempo de generación
 ============================ */
 
-// Formatea milisegundos a un texto legible (ej: "1.8 s" o "1 m 12 s")
 function formatElapsed(ms) {
   const totalSeconds = ms / 1000;
   if (totalSeconds < 60) {
@@ -158,20 +181,17 @@ function formatElapsed(ms) {
   return `${minutes} m ${seconds} s`;
 }
 
-// Muestra el tiempo total de generación en el badge (arriba a la derecha)
 function showGenTime(ms) {
   if (!genTimeBadge || typeof ms !== "number") return;
   genTimeBadge.textContent = formatElapsed(ms);
   genTimeBadge.style.display = "inline-flex";
 }
 
-// Formatea un conteo de tokens (ej: "950 tok" o "8.2k tok")
 function formatTokens(n) {
   if (n < 1000) return `${n} tok`;
   return `${(n / 1000).toFixed(1)}k tok`;
 }
 
-// Muestra los tokens totales consumidos en la sesión de generación
 function showGenTokens(total) {
   if (!genTokenBadge || typeof total !== "number") return;
   genTokenBadge.textContent = formatTokens(total);
@@ -327,6 +347,7 @@ window.addEventListener("message", (event) => {
     ---------------------------------------- */
     case "resetInputs":
       clearAgentPipeline();
+      showContextToggle();
       setStepperState(0, "", "");
       applyStepUI(0, {
         currentStep,
@@ -361,12 +382,14 @@ window.addEventListener("message", (event) => {
         stepInput,
       });
       showLoadingUI();
+      hideContextToggle();
 
       const { selectedModel, selectedSubModel } = getSelectedModel();
       vscode.postMessage({
         command: "generateTest",
         model: selectedModel,
         subModel: selectedSubModel,
+        reduceContext: getReduceContext(),
       });
       break;
   }

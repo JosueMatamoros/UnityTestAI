@@ -36,12 +36,24 @@ export function initJsonLoader() {
       showLoading(resultCard, typingIndicator, resultContainer);
       switchToChat(stepper, jsonContainer, actionsContainer, chatActionsContainer);
 
+      const toggleBar = document.getElementById("contextToggleBar");
+      if (toggleBar) toggleBar.style.display = "none";
+
+      const toggle = document.getElementById("reduceContextToggle");
+      const reduceContext =
+        typeof config.reduceContext === "boolean"
+          ? config.reduceContext
+          : toggle
+          ? toggle.checked
+          : true;
+
       window.vscode.postMessage({
         command: "generateFromConfig",
         className: config.className,
         methodName: config.methodName,
         model: config.model,
         subModel: config.subModel || null,
+        reduceContext,
       });
     } catch (err) {
       window.vscode.postMessage({

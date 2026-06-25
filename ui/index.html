@@ -37,9 +37,7 @@
       <div class="card" id="resultCard" style="display: none">
         <div class="card-header">
           <span>Resultado LLM</span>
-          <!-- Tiempo total de generación (arriba a la derecha) -->
           <span id="genTimeBadge" class="gen-time-badge" style="display: none"></span>
-          <!-- Tokens totales consumidos en la sesión -->
           <span id="genTokenBadge" class="gen-token-badge" style="display: none"></span>
           <!-- Botón para copiar el resultado del LLM -->
           <button id="copyBtn">Copiar</button>
@@ -83,6 +81,20 @@
         <input type="file" id="jsonFileInput" accept=".json" />
       </div>
 
+      <div class="bottom-dock">
+      <div class="context-toggle-bar" id="contextToggleBar">
+        <div class="context-toggle-group">
+          <span class="ctx-toggle-caption" id="reduceContextCaption">Contexto reducido</span>
+          <label
+            class="switch"
+            title="Activado: comprime el contexto (solo lo relevante de la clase objetivo y firmas de dependencias). Desactivado: envía la clase objetivo y todas las dependencias completas."
+          >
+            <input type="checkbox" id="reduceContextToggle" checked />
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+      </div>
+
       <!-- ================= Sección de acciones ================= -->
       <div class="actions form-actions" id="actions">
         <div class="input-group" id="stepInputGroup">
@@ -118,6 +130,7 @@
         <button id="chatSendBtn">
           <span class="icon">➤</span>
         </button>
+      </div>
       </div>
     </main>
 

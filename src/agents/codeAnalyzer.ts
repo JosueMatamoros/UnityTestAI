@@ -106,6 +106,7 @@ export interface CodeAnalyzerInput {
 export interface DependencyFileResult {
   path: string;
   found: boolean;
+  content?: string;
 }
 
 export interface ReadDependencyResult {
@@ -141,7 +142,7 @@ export function readDependencyFiles(
     if (resolvedPath) {
       const content = fs.readFileSync(resolvedPath, "utf8");
       combined += `\n\n// File: ${file}\n${content}`;
-      files.push({ path: file, found: true });
+      files.push({ path: file, found: true, content });
     } else {
       console.warn(`Dependency file not found: ${file} (tried ${directPath} and ${strippedPath})`);
       files.push({ path: file, found: false });

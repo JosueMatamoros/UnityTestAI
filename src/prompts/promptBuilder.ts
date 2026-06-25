@@ -101,12 +101,22 @@ export function buildCodeAnalyzerPrompt(
 export function buildContextValidatorPrompt(
   methodName: string,
   className: string,
-  assembledContext: string
+  assembledContext: string,
+  fullContext: boolean = false
 ): string {
+  const fullContextNote = fullContext
+    ? `\nCONTEXT FORMAT — IMPORTANT:
+The context is organized into sections with \`// ── TARGET: ... ──\` and \`// ── DEPENDENCY: <file> ──\` headers. Each DEPENDENCY section may contain EITHER:
+  (a) a minimal slice with only the members referenced by the target method, OR
+  (b) the COMPLETE source of the dependency file (full-context mode).
+Both forms are VALID. When a section contains a full file, treat the extra members as normal — this is NOT a problem and you must NOT trim, shorten, or "optimize" it. Your job is only to confirm completeness, never to reduce.\n`
+    : "";
+
   return replacePlaceholders(loadTemplate("contextValidatorPrompt.txt"), {
     "<method-name>":      methodName,
     "<class-name>":       className,
     "{assembledContext}": assembledContext,
+    "{fullContextNote}":  fullContextNote,
   });
 }
 

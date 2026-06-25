@@ -32,7 +32,6 @@ type TestContext = {
 };
 const testContextByPanel = new WeakMap<vscode.WebviewPanel, TestContext>();
 
-// Acumulador de tokens por panel — suma el uso de todos los agentes de una sesión
 const tokenTotalsByPanel = new WeakMap<
   vscode.WebviewPanel,
   { inputTokens: number; outputTokens: number }
@@ -190,6 +189,26 @@ function formatCodeAnalysis(analysis: CodeAnalyzerOutput): string {
   return lines.join("\n");
 }
 
+function buildFullContext(
+  className: string,
+  methodName: string,
+  targetCode: string,
+  dependencyFiles: DependencyFileResult[]
+): string {
+  const header = `// ── TARGET: ${className}.${methodName} ──────────────────────────────────────`;
+  const parts = [header, targetCode];
+
+  for (const dep of dependencyFiles) {
+    if (!dep.found || !dep.content) continue;
+    parts.push(
+      `// ── DEPENDENCY: ${dep.path} ──────────────────────────────────────`,
+      dep.content
+    );
+  }
+
+  return parts.join("\n\n");
+}
+
 // ── Pipeline ───────────────────────────────────────────────────────────────────
 
 async function handleGenerate(
@@ -198,14 +217,13 @@ async function handleGenerate(
   model: string,
   subModel: string | null,
   code: string,
+  reduceContext: boolean,
   panel: vscode.WebviewPanel,
   _context: vscode.ExtensionContext
 ) {
   generationMetaByPanel.set(panel, { className, methodName, model, subModel });
 
-  // Inicia el contador desde antes de enviar el prompt del primer agente
   const generationStart = Date.now();
-  // Resetea el acumulador de tokens para esta sesión de generación
   tokenTotalsByPanel.set(panel, { inputTokens: 0, outputTokens: 0 });
 
   const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -223,21 +241,26 @@ async function handleGenerate(
     if (!handler) throw new Error(`Modelo no válido: ${model}`);
 
     // ── Step 0: Method Slicer ──────────────────────────────────────────────
-    const slicerAgent = "Method Slicer";
-    notifyAgent(panel, slicerAgent, "running");
-    const slicerResult = await runMethodSlicer(
-      { code, className, methodName, workspaceRoot },
-      (prompt) => handler(prompt, panel, subModel ?? undefined)
-    );
-    saveAgentOutput("method-slicer", slicerResult);
+    let codeSlice: string;
+    if (reduceContext) {
+      const slicerAgent = "Method Slicer";
+      notifyAgent(panel, slicerAgent, "running");
+      const slicerResult = await runMethodSlicer(
+        { code, className, methodName, workspaceRoot },
+        (prompt) => handler(prompt, panel, subModel ?? undefined)
+      );
+      saveAgentOutput("method-slicer", slicerResult);
 
-    if (slicerResult.status === "ERROR") {
-      notifyAgent(panel, slicerAgent, "error", slicerResult.message);
-      throw new Error(`Method Slicer failed: ${slicerResult.message}`);
+      if (slicerResult.status === "ERROR") {
+        notifyAgent(panel, slicerAgent, "error", slicerResult.message);
+        throw new Error(`Method Slicer failed: ${slicerResult.message}`);
+      }
+      notifyAgent(panel, slicerAgent, "done");
+
+      codeSlice = slicerResult.codeSlice.join("\n");
+    } else {
+      codeSlice = code;
     }
-    notifyAgent(panel, slicerAgent, "done");
-
-    const codeSlice = slicerResult.codeSlice.join("\n");
 
     // ── Step 1: Dependency Resolver ──────────────────────────────────────────
     const depAgent = "Dependency Resolver";
@@ -268,43 +291,53 @@ async function handleGenerate(
     }
 
     if (resolvedFiles.length > 0) {
-      panel.webview.postMessage({ command: "dependencyFiles", files: resolvedFiles });
+      panel.webview.postMessage({
+        command: "dependencyFiles",
+        files: resolvedFiles.map((f) => ({ path: f.path, found: f.found })),
+      });
     }
 
     // ── Step 2: Context Builder ───────────────────────────────────────────────
-    const ctxAgent = "Context Builder";
-    notifyAgent(panel, ctxAgent, "running");
-    const ctxResult = await runContextBuilder(
-      {
-        codeSlice,
-        dependencyFiles: depFilePaths,
-        resolvedDependencyCode,
-        className,
-        methodName,
-        workspaceRoot,
-      },
-      (prompt) => handler(prompt, panel, subModel ?? undefined)
-    );
-    saveAgentOutput("context-builder", ctxResult);
+    let preValidationContext: string;
+    if (reduceContext) {
+      const ctxAgent = "Context Builder";
+      notifyAgent(panel, ctxAgent, "running");
+      const ctxResult = await runContextBuilder(
+        {
+          codeSlice,
+          dependencyFiles: depFilePaths,
+          resolvedDependencyCode,
+          className,
+          methodName,
+          workspaceRoot,
+        },
+        (prompt) => handler(prompt, panel, subModel ?? undefined)
+      );
+      saveAgentOutput("context-builder", ctxResult);
 
-    if (ctxResult.status === "ERROR") {
-      notifyAgent(panel, ctxAgent, "error", ctxResult.message);
-      throw new Error(`Context Builder failed: ${ctxResult.message}`);
-    }
-    notifyAgent(panel, ctxAgent, "done");
+      if (ctxResult.status === "ERROR") {
+        notifyAgent(panel, ctxAgent, "error", ctxResult.message);
+        throw new Error(`Context Builder failed: ${ctxResult.message}`);
+      }
+      notifyAgent(panel, ctxAgent, "done");
 
-    if (ctxResult.dependencySlices.length > 0) {
-      panel.webview.postMessage({
-        command: "contextBuilderSlices",
-        slices: ctxResult.dependencySlices.map((s) => ({ filePath: s.filePath })),
-      });
+      if (ctxResult.dependencySlices.length > 0) {
+        panel.webview.postMessage({
+          command: "contextBuilderSlices",
+          slices: ctxResult.dependencySlices.map((s) => ({ filePath: s.filePath })),
+        });
+      }
+
+      preValidationContext = ctxResult.assembledContext;
+    } else {
+      preValidationContext = buildFullContext(className, methodName, code, resolvedFiles);
     }
 
     // ── Step 2.5: Context Validator ───────────────────────────────────────────
     const ctxValAgent = "Context Validator";
     notifyAgent(panel, ctxValAgent, "running");
     const ctxValResult = await runContextValidator(
-      { assembledContext: ctxResult.assembledContext, className, methodName, workspaceRoot },
+      { assembledContext: preValidationContext, className, methodName, workspaceRoot, fullContext: !reduceContext },
       (prompt) => handler(prompt, panel, subModel ?? undefined)
     );
     saveAgentOutput("validator-context", ctxValResult);
@@ -474,6 +507,7 @@ export async function createWebviewPanel(context: vscode.ExtensionContext, code:
 
       case "generateFromConfig": {
         const { className, methodName, model, subModel } = message;
+        const reduceContext = message.reduceContext !== false;
         const { classOk, methodOk } = checkSymbols(code, className, methodName);
         if (!classOk || !methodOk) {
           const what = !classOk
@@ -483,13 +517,14 @@ export async function createWebviewPanel(context: vscode.ExtensionContext, code:
           panel.webview.postMessage({ command: "generationError", message: what });
           return;
         }
-        await handleGenerate(className, methodName, model, subModel, code, panel, context);
+        await handleGenerate(className, methodName, model, subModel, code, reduceContext, panel, context);
         break;
       }
 
       case "generateTest": {
         const { className, methodName } = await collectClassAndMethod(panel);
-        await handleGenerate(className, methodName, message.model, message.subModel, code, panel, context);
+        const reduceContext = message.reduceContext !== false;
+        await handleGenerate(className, methodName, message.model, message.subModel, code, reduceContext, panel, context);
         break;
       }
 

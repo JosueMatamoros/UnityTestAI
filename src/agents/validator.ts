@@ -67,6 +67,7 @@ export interface ContextValidatorInput {
   className: string;
   methodName: string;
   workspaceRoot: string;
+  fullContext?: boolean;
 }
 
 /**
@@ -91,7 +92,8 @@ export async function runContextValidator(
   const prompt = buildContextValidatorPrompt(
     input.methodName,
     input.className,
-    input.assembledContext
+    input.assembledContext,
+    input.fullContext ?? false
   );
   fs.writeFileSync(path.join(dumpDir, "validator-context-prompt.txt"), prompt, "utf8");
 
