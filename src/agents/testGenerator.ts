@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { z } from "zod";
 import { buildTestGeneratorPrompt } from "../prompts/promptBuilder";
+import { JsonSanitizer } from "../utils/jsonSanitizer";
 
 // ── Output schema ──────────────────────────────────────────────────────────────
 
@@ -70,7 +71,7 @@ export async function runTestGenerator(
   // LLM returned an error JSON instead of code
   if (cleanCode.startsWith("{")) {
     try {
-      const json = JSON.parse(cleanCode);
+      const json = JSON.parse(JsonSanitizer.sanitize(cleanCode));
       if (json.status === "GENERATION_FAILED" || json.status === "INVALID_INPUT") {
         return {
           status: "ERROR",

@@ -5,7 +5,7 @@ import type { LLMResult } from "./index";
 
 export async function generateWithChatGPT(
   messages: ChatMessage[],
-  model: string = "gpt-4o-mini"
+  model: string = "gpt-4o-nano",
 ): Promise<LLMResult> {
   const { text, usage } = await generateText({
     model: openai(model),

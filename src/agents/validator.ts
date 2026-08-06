@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { z } from "zod";
 import { buildContextValidatorPrompt, buildTestValidatorPrompt } from "../prompts/promptBuilder";
+import { JsonSanitizer } from "../utils/jsonSanitizer";
 
 // ── Output schema ──────────────────────────────────────────────────────────────
 
@@ -34,7 +35,7 @@ function parseValidatorResponse(
   }
 
   try {
-    const json = JSON.parse(jsonMatch[0]);
+    const json = JSON.parse(JsonSanitizer.sanitize(jsonMatch[0]));
 
     const llmSchema = z.discriminatedUnion("status", [
       z.object({ status: z.literal("VALID") }),

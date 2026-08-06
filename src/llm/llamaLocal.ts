@@ -10,7 +10,7 @@ const ollama = createOpenAICompatible({
 
 export async function generateWithOllama(
   messages: ChatMessage[],
-  model: string = "qwen2.5:14b"
+  model: string = "qwen2.5:14b",
 ): Promise<LLMResult> {
   const { text, usage } = await generateText({
     model: ollama.chatModel(model),

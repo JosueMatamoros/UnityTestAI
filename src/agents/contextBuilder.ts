@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { z } from "zod";
 import { buildContextBuilderPrompt } from "../prompts/promptBuilder";
+import { JsonSanitizer } from "../utils/jsonSanitizer";
 import { readDependencyFiles } from "./codeAnalyzer";
 
 // ── Output schema ──────────────────────────────────────────────────────────────
@@ -122,7 +123,7 @@ export async function runContextBuilder(
       throw new Error("No JSON object found in LLM response");
     }
 
-    const json = JSON.parse(jsonMatch[0]);
+    const json = JSON.parse(JsonSanitizer.sanitize(jsonMatch[0]));
 
     const llmSchema = z.object({
       status: z.literal("READY"),

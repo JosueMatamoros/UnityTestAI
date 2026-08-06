@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { z } from "zod";
 import { buildMethodSlicerPrompt } from "../prompts/promptBuilder";
+import { JsonSanitizer } from "../utils/jsonSanitizer";
 
 // ── Output schema ──────────────────────────────────────────────────────────────
 
@@ -66,7 +67,7 @@ export async function runMethodSlicer(
     if (!jsonMatch) {
       throw new Error("No JSON object found in LLM response");
     }
-    const json = JSON.parse(jsonMatch[0]);
+    const json = JSON.parse(JsonSanitizer.sanitize(jsonMatch[0]));
     parsed = methodSlicerOutputSchema.parse(json);
   } catch (err: any) {
     parsed = {

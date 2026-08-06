@@ -27,7 +27,7 @@ function getClient(): Anthropic {
  */
 export async function generateWithClaude(
   messages: ChatMessage[],
-  model: string = "claude-opus-4-8"
+  model: string = "claude-haiku-4-5",
 ): Promise<LLMResult> {
   const systemPrompt = messages
     .filter((m) => m.role === "system")

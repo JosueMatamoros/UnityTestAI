@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { z } from "zod";
 import { buildChatFixerPrompt } from "../prompts/promptBuilder";
+import { JsonSanitizer } from "../utils/jsonSanitizer";
 
 // ── Output schema ──────────────────────────────────────────────────────────────
 
@@ -71,7 +72,7 @@ export async function runChatFixer(
     if (!jsonMatch) {
       throw new Error("No JSON object found in chat fixer response");
     }
-    result = chatFixerOutputSchema.parse(JSON.parse(jsonMatch[0]));
+    result = chatFixerOutputSchema.parse(JSON.parse(JsonSanitizer.sanitize(jsonMatch[0])));
   } catch (err: any) {
     result = { status: "ERROR", message: `Failed to parse fixer response: ${err.message}` };
   }
